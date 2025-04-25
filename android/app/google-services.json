@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "403774137760",
+    "project_id": "just-66-f51b6",
+    "storage_bucket": "just-66-f51b6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:403774137760:android:a3e6009d798d485be970c5",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA3kq6Sbs0E1iWqmAGpQE_mzugt92XgwnQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:403774137760:android:d9a71f03f4465252e970c5",
+        "android_client_info": {
+          "package_name": "com.juststore.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA3kq6Sbs0E1iWqmAGpQE_mzugt92XgwnQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

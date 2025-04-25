@@ -1,0 +1,2 @@
+C:/Users/joman/just_store_clean/android/app/.cxx/Debug/106g2q4t/x86_64/CMakeFiles/edit_cache.dir
+C:/Users/joman/just_store_clean/android/app/.cxx/Debug/106g2q4t/x86_64/CMakeFiles/rebuild_cache.dir
