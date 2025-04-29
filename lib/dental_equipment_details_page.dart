@@ -33,23 +33,41 @@ class DentalEquipmentDetailsPage extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(15),
-              child: Image.asset(image, height: 200, width: double.infinity, fit: BoxFit.cover),
+              child: Image.asset(
+                image,
+                height: 200,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
             ),
             const SizedBox(height: 20),
-            Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 12),
             Text(
               description,
-              style: TextStyle(fontSize: 16, color: isDark ? Colors.grey[300] : Colors.grey[800]),
+              style: TextStyle(
+                fontSize: 16,
+                color: isDark ? Colors.grey[300] : Colors.grey[800],
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
             Text(
               price,
-              style: const TextStyle(fontSize: 20, color: Colors.green, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                fontSize: 20,
+                color: Colors.green,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 30),
-            const Text('Contact Seller', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+            const Text(
+              'Contact Seller',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 15),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -72,15 +90,27 @@ class DentalEquipmentDetailsPage extends StatelessWidget {
                   },
                   icon: const Icon(Icons.call),
                   label: const Text('Call'),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                  ),
                 ),
                 ElevatedButton.icon(
                   onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatPage(userName: 'Admin')));
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ChatPage(
+                          userName: 'Admin',
+                          userAvatar: 'https://randomuser.me/api/portraits/men/4.jpg', // ✅ صورة رمزية جديدة
+                        ),
+                      ),
+                    );
                   },
                   icon: const Icon(Icons.chat),
                   label: const Text('Chat'),
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF3B3B98)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF3B3B98),
+                  ),
                 ),
               ],
             ),

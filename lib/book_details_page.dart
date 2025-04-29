@@ -37,7 +37,7 @@ class BookDetailsPage extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(15),
               child: Image.file(
-                File(image), // ✅ عرض الصورة من ملف
+                File(image), // ✅ عرض الصورة من ملف محلي
                 height: 200,
                 width: double.infinity,
                 fit: BoxFit.cover,
@@ -103,7 +103,10 @@ class BookDetailsPage extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const ChatPage(userName: 'seller'),
+                        builder: (_) => const ChatPage(
+                          userName: 'seller',
+                          userAvatar: 'https://randomuser.me/api/portraits/men/7.jpg', // ✅ صورة رمزية
+                        ),
                       ),
                     );
                   },

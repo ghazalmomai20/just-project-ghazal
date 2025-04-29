@@ -102,7 +102,12 @@ class ArtsCraftsDetailsPage extends StatelessWidget {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const ChatPage(userName: 'Admin')),
+                      MaterialPageRoute(
+                        builder: (_) => const ChatPage(
+                          userName: 'Admin',
+                          userAvatar: 'https://randomuser.me/api/portraits/men/9.jpg', // صورة رمزية
+                        ),
+                      ),
                     );
                   },
                   icon: const Icon(Icons.chat),

@@ -3,8 +3,13 @@ import 'package:intl/intl.dart';
 
 class ChatPage extends StatefulWidget {
   final String userName;
+  final String userAvatar;
 
-  const ChatPage({super.key, required this.userName});
+  const ChatPage({
+    super.key,
+    required this.userName,
+    required this.userAvatar,
+  });
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -66,8 +71,23 @@ class _ChatPageState extends State<ChatPage> {
       backgroundColor: isDark ? Colors.black : Colors.grey[100],
       appBar: AppBar(
         backgroundColor: const Color(0xFF3B3B98),
-        title: Text(widget.userName, style: const TextStyle(color: Colors.white)),
-        centerTitle: true,
+        title: Row(
+          children: [
+            Hero(
+              tag: 'avatar-${widget.userName}',
+              child: CircleAvatar(
+                backgroundImage: NetworkImage(widget.userAvatar),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                widget.userName,
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
       ),
       body: Column(
         children: [
@@ -107,6 +127,7 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                     ...entry.value.asMap().entries.map((e) {
                       final msg = e.value;
+                      final index = _messages.indexOf(msg);
                       final time = DateFormat.jm().format(msg.time);
 
                       if (_searchQuery.isNotEmpty &&
@@ -115,16 +136,16 @@ class _ChatPageState extends State<ChatPage> {
                       }
 
                       return GestureDetector(
-                        onLongPress: () => _showDeleteDialog(_messages.indexOf(msg)),
+                        onLongPress: () => _showDeleteDialog(index),
                         child: Align(
-                          alignment: _messages.indexOf(msg) % 2 == 0
+                          alignment: index % 2 == 0
                               ? Alignment.centerRight
                               : Alignment.centerLeft,
                           child: Container(
                             margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                             decoration: BoxDecoration(
-                              color: _messages.indexOf(msg) % 2 == 0
+                              color: index % 2 == 0
                                   ? const Color(0xFF3B3B98)
                                   : Colors.grey[300],
                               borderRadius: BorderRadius.circular(20),
@@ -135,9 +156,7 @@ class _ChatPageState extends State<ChatPage> {
                                 Text(
                                   msg.text,
                                   style: TextStyle(
-                                    color: _messages.indexOf(msg) % 2 == 0
-                                        ? Colors.white
-                                        : Colors.black,
+                                    color: index % 2 == 0 ? Colors.white : Colors.black,
                                   ),
                                 ),
                                 const SizedBox(height: 5),
@@ -145,9 +164,7 @@ class _ChatPageState extends State<ChatPage> {
                                   time,
                                   style: TextStyle(
                                     fontSize: 10,
-                                    color: _messages.indexOf(msg) % 2 == 0
-                                        ? Colors.white70
-                                        : Colors.black54,
+                                    color: index % 2 == 0 ? Colors.white70 : Colors.black54,
                                   ),
                                 ),
                               ],
@@ -182,7 +199,8 @@ class _ChatPageState extends State<ChatPage> {
                         hintText: 'Type a message...',
                         filled: true,
                         fillColor: isDark ? Colors.grey[800] : Colors.grey[100],
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(25),
                           borderSide: BorderSide.none,

@@ -105,7 +105,10 @@ class EngineeringToolsDetailsPage extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const ChatPage(userName: 'Seller'),
+                        builder: (_) => const ChatPage(
+                          userName: 'Seller',
+                          userAvatar: 'https://randomuser.me/api/portraits/men/12.jpg', // ✅ صورة رمزية للهندسة
+                        ),
                       ),
                     );
                   },

@@ -1,17 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'add_product_page.dart';
 import 'settings_page.dart';
-import 'profile_page.dart';
-import 'theme_provider.dart';
 import 'chat_list_page.dart';
-import 'books_products_page.dart';
-import 'engineering_tools_page.dart';
-import 'electronics_page.dart';
-import 'arts_crafts_page.dart';
-import 'clothes_page.dart';
-import 'dental_equipment_page.dart';
+import 'favorites_page.dart';
+import 'profile_page.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -20,15 +16,39 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
-  int _selectedIndex = 0;
+class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
   String _username = 'User';
-  final int _unreadMessages = 3;
+  String _selectedCategory = 'All';
+  String _searchQuery = ''; // ✅ متغير البحث الجديد
+  final Color _primaryColor = const Color(0xFF1976D2);
+  final Color _backgroundColor = const Color(0xFFF5F7FA);
+
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
+
+  final List<Map<String, dynamic>> _categories = [
+    {'icon': Icons.all_inclusive, 'label': 'All'},
+    {'icon': Icons.book, 'label': 'Books'},
+    {'icon': Icons.school, 'label': 'Lab Coat'},
+    {'icon': Icons.laptop, 'label': 'Laptop'},
+    {'icon': Icons.medical_services, 'label': 'Medical'},
+    {'icon': Icons.architecture, 'label': 'Engineering'},
+    {'icon': Icons.color_lens, 'label': 'Arts'},
+  ];
 
   @override
   void initState() {
     super.initState();
     _loadUsername();
+    _fadeController = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
+    _fadeAnimation = CurvedAnimation(parent: _fadeController, curve: Curves.easeIn);
+    _fadeController.forward();
+  }
+
+  @override
+  void dispose() {
+    _fadeController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadUsername() async {
@@ -38,79 +58,25 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  Widget _buildBody() {
-    return _selectedIndex == 0
-        ? HomeContent(username: _username, unreadMessages: _unreadMessages)
-        : const ProfilePage();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final isDark = Provider.of<ThemeProvider>(context).isDarkMode;
-
     return Scaffold(
-      backgroundColor: isDark ? Colors.black : Colors.white,
-      body: Stack(
-        children: [
-          _buildBody(),
-          Positioned(
-            top: 77,
-            right: 20,
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.settings, color: Colors.white),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const SettingsPage()),
-                    );
-                  },
-                ),
-                Stack(
-                  children: [
-                    IconButton(
-                      icon: const Icon(
-                        Icons.chat_bubble_outline,
-                        color: Colors.white,
-                      ),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const ChatListPage(),
-                          ),
-                        );
-                      },
-                    ),
-                    if (_unreadMessages > 0)
-                      Positioned(
-                        right: 6,
-                        top: 6,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.red,
-                          ),
-                          child: Text(
-                            '$_unreadMessages',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
+      backgroundColor: _backgroundColor,
+      body: SafeArea(
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: Column(
+            children: [
+              _buildAppBar(context),
+              _buildSearchBar(),
+              SizedBox(height: 80, child: _buildCategorySelector()),
+              Expanded(child: _buildPostsGrid()),
+            ],
           ),
-        ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFF3B3B98),
+        backgroundColor: _primaryColor,
         onPressed: () {
           Navigator.push(
             context,
@@ -120,183 +86,251 @@ class _HomePageState extends State<HomePage> {
         child: const Icon(Icons.add, color: Colors.white),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 8,
-        color: const Color(0xFF3B3B98),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 25),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      bottomNavigationBar: _buildBottomNavBar(),
+    );
+  }
+
+  Widget _buildAppBar(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: _primaryColor,
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: Colors.white.withOpacity(0.3),
+            child: const Icon(Icons.person, color: Colors.white),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              IconButton(
-                icon: const Icon(Icons.home, color: Colors.white),
-                onPressed: () => setState(() => _selectedIndex = 0),
-              ),
-              const SizedBox(width: 40),
-              IconButton(
-                icon: const Icon(Icons.person, color: Colors.white),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ProfilePage()),
-                  );
-                },
+              Text("Welcome,", style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 14)),
+              Text(
+                _username,
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
               ),
             ],
           ),
+          const Spacer(),
+          _buildAnimatedIcon(Icons.notifications_outlined, () {}),
+          _buildAnimatedIcon(Icons.settings, () {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage()));
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnimatedIcon(IconData icon, VoidCallback onPressed) {
+    return IconButton(
+      icon: Icon(icon, color: Colors.white),
+      onPressed: onPressed,
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      color: _primaryColor,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        height: 40,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.search, color: Colors.grey[600], size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+                },
+                decoration: const InputDecoration(
+                  hintText: 'Search posts...',
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ),
+            Icon(Icons.filter_list, color: _primaryColor, size: 20),
+          ],
         ),
       ),
     );
   }
-}
 
-class HomeContent extends StatefulWidget {
-  final String username;
-  final int unreadMessages;
+  Widget _buildCategorySelector() {
+    return ListView.builder(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: _categories.length,
+      itemBuilder: (context, index) {
+        final category = _categories[index];
+        final isSelected = _selectedCategory == category['label'];
 
-  const HomeContent({
-    super.key,
-    required this.username,
-    required this.unreadMessages,
-  });
-
-  @override
-  State<HomeContent> createState() => _HomeContentState();
-}
-
-class _HomeContentState extends State<HomeContent> {
-  final TextEditingController _searchController = TextEditingController();
-
-  final List<Map<String, dynamic>> _categories = [
-    {
-      'label': 'Books & Slide',
-      'icon': Icons.menu_book,
-      'page': const BooksProductsPage(),
-    },
-    {
-      'label': 'Engineering Tools',
-      'icon': Icons.architecture,
-      'page': const EngineeringToolsPage(),
-    },
-    {
-      'label': 'Electronics',
-      'icon': Icons.computer,
-      'page': const ElectronicsPage(),
-    },
-    {
-      'label': 'Arts & Crafts',
-      'icon': Icons.brush,
-      'page': const ArtsCraftsPage(),
-    },
-    {'label': 'Clothes', 'icon': Icons.checkroom, 'page': const ClothesPage()},
-    {
-      'label': 'Dental Equipment',
-      'icon': Icons.medical_services,
-      'page': const DentalEquipmentPage(),
-    },
-  ];
-
-  List<Map<String, dynamic>> _filteredCategories = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _filteredCategories = List.from(_categories);
+        return GestureDetector(
+          onTap: () => setState(() => _selectedCategory = category['label']),
+          child: Container(
+            margin: const EdgeInsets.only(right: 12),
+            width: 65,
+            child: Column(
+              children: [
+                Container(
+                  height: 40,
+                  width: 40,
+                  decoration: BoxDecoration(
+                    color: isSelected ? _primaryColor : Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)],
+                  ),
+                  child: Icon(
+                    category['icon'],
+                    size: 20,
+                    color: isSelected ? Colors.white : _primaryColor,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  category['label'],
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    color: isSelected ? _primaryColor : Colors.grey[700],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
-  void _filterCategories(String query) {
-    setState(() {
-      _filteredCategories =
-          _categories
-              .where(
-                (item) =>
-                    item['label'].toLowerCase().contains(query.toLowerCase()),
-              )
-              .toList();
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Provider.of<ThemeProvider>(context).isDarkMode;
-
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildBottomNavBar() {
+    return BottomAppBar(
+      shape: const CircularNotchedRectangle(),
+      notchMargin: 6,
+      color: Colors.white,
+      child: SizedBox(
+        height: 56,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF3B3B98), Color(0xFF2C2C54)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(25),
-                  bottomRight: Radius.circular(25),
-                ),
-              ),
-              child: Text(
-                'Welcome, ${widget.username}!',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Category',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _searchController,
-              onChanged: _filterCategories,
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.search),
-                hintText: 'Search categories...',
-                filled: true,
-                fillColor: isDark ? Colors.grey[800] : Colors.grey[200],
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(25),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Column(
-              children:
-                  _filteredCategories.map((item) {
-                    return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                      leading: CircleAvatar(
-                        backgroundColor:
-                            isDark ? Colors.blueGrey : Colors.blue.shade100,
-                        child: Icon(item['icon'], color: Colors.blue),
-                      ),
-                      title: Text(
-                        item['label'],
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => item['page']),
-                        );
-                      },
-                    );
-                  }).toList(),
-            ),
+            _buildNavItem(Icons.home, 'Home', true),
+            _buildNavItem(Icons.favorite_border, 'Favorites', false),
+            const SizedBox(width: 32),
+            _buildNavItem(Icons.chat_bubble_outline, 'Messages', false),
+            _buildNavItem(Icons.person_outline, 'Profile', false),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildNavItem(IconData icon, String label, bool isSelected) {
+    return InkWell(
+      onTap: () {
+        if (label == 'Favorites') {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const FavoritesPage()));
+        } else if (label == 'Messages') {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatListPage()));
+        } else if (label == 'Profile') {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => ProfilePage(userName: _username)));
+        }
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: isSelected ? _primaryColor : Colors.grey[600], size: 20),
+          const SizedBox(height: 1),
+          Text(label, style: TextStyle(fontSize: 10, color: isSelected ? _primaryColor : Colors.grey[600])),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPostsGrid() {
+    final query = _selectedCategory == 'All'
+        ? FirebaseFirestore.instance.collection('posts').orderBy('timestamp', descending: true)
+        : FirebaseFirestore.instance
+        .collection('posts')
+        .where('category', isEqualTo: _selectedCategory)
+        .orderBy('timestamp', descending: true);
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: query.snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) return const Center(child: Text('Error loading posts'));
+        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+
+        final posts = snapshot.data!.docs;
+
+        final filteredPosts = _searchQuery.isEmpty
+            ? posts
+            : posts.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          final name = data['name']?.toLowerCase() ?? '';
+          return name.contains(_searchQuery.toLowerCase());
+        }).toList();
+
+        if (filteredPosts.isEmpty) {
+          return const Center(child: Text('No posts found.'));
+        }
+
+        return GridView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: 0.75,
+          ),
+          itemCount: filteredPosts.length,
+          itemBuilder: (context, index) {
+            final data = filteredPosts[index].data() as Map<String, dynamic>;
+            final name = data['name'] ?? '';
+            final price = data['price']?.toString() ?? '0';
+            final imageUrl = data['imageUrl'] ?? '';
+
+            return Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                    child: imageUrl.isNotEmpty
+                        ? Image.network(imageUrl, height: 120, width: double.infinity, fit: BoxFit.cover)
+                        : Container(height: 120, color: Colors.grey[300], child: const Icon(Icons.image)),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 2),
+                        Text("\$$price", style: TextStyle(color: _primaryColor, fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

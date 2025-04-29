@@ -1,13 +1,3 @@
-
-
-
-
-
-
-
-
-
-
 import 'package:flutter/material.dart';
 import 'chat_page.dart';
 
@@ -110,7 +100,12 @@ class ClothesDetailsPage extends StatelessWidget {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const ChatPage(userName: 'Admin')),
+                      MaterialPageRoute(
+                        builder: (_) => const ChatPage(
+                          userName: 'Admin',
+                          userAvatar: 'https://randomuser.me/api/portraits/women/5.jpg', // ✅ صورة رمزية
+                        ),
+                      ),
                     );
                   },
                   icon: const Icon(Icons.chat),
@@ -128,10 +123,3 @@ class ClothesDetailsPage extends StatelessWidget {
     );
   }
 }
-
-
-
-
-
-
-

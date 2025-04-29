@@ -10,6 +10,8 @@ import 'terms_conditions_page.dart';
 import 'privacy_policy_page.dart';
 import 'about_app_page.dart';
 import 'rate_app_page.dart';
+import 'home_page.dart';
+import 'chat_list_page.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -21,9 +23,10 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   bool notificationsOn = false;
   final int _unreadMessages = 5;
-
   final FlutterLocalNotificationsPlugin _notificationsPlugin =
-      FlutterLocalNotificationsPlugin();
+  FlutterLocalNotificationsPlugin();
+
+  String _userName = 'User';
 
   @override
   void initState() {
@@ -42,6 +45,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       notificationsOn = prefs.getBool('notificationsOn') ?? false;
+      _userName = prefs.getString('username') ?? 'User';
     });
 
     if (notificationsOn) {
@@ -77,8 +81,6 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-    // ignore: unused_local_variable
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final backgroundColor = Theme.of(context).scaffoldBackgroundColor;
 
     return Scaffold(
@@ -98,7 +100,9 @@ class _SettingsPageState extends State<SettingsPage> {
           _buildSettingsTile(Icons.person, 'Edit Profile', Colors.green, () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const ProfilePage()),
+              MaterialPageRoute(
+                builder: (_) => ProfilePage(userName: _userName),
+              ),
             );
           }),
           const SizedBox(height: 12),
@@ -133,27 +137,35 @@ class _SettingsPageState extends State<SettingsPage> {
             Icons.description,
             'Terms & Conditions',
             Colors.indigo,
-            () {
+                () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const TermsAndConditionsPage(),
-                ),
+                MaterialPageRoute(builder: (_) => const TermsAndConditionsPage()),
               );
             },
           ),
-          _buildSettingsTile(Icons.lock, 'Privacy Policy', Colors.red, () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const PrivacyPolicyPage()),
-            );
-          }),
-          _buildSettingsTile(Icons.star, 'Rate This App', Colors.purple, () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const RateAppPage()),
-            );
-          }),
+          _buildSettingsTile(
+            Icons.lock,
+            'Privacy Policy',
+            Colors.red,
+                () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PrivacyPolicyPage()),
+              );
+            },
+          ),
+          _buildSettingsTile(
+            Icons.star,
+            'Rate This App',
+            Colors.purple,
+                () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const RateAppPage()),
+              );
+            },
+          ),
           _buildSettingsTile(Icons.share, 'Share This App', Colors.pink, () {
             Share.share(
               'Check out this awesome app Just Store!\nhttps://JUSTSTORE.com/juststore',
@@ -168,7 +180,6 @@ class _SettingsPageState extends State<SettingsPage> {
           }),
         ],
       ),
-
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: const Color(0xFF3B3B98),
         selectedItemColor: Colors.white,
@@ -176,15 +187,19 @@ class _SettingsPageState extends State<SettingsPage> {
         currentIndex: 2,
         onTap: (index) {
           if (index == 0) {
-            Navigator.pop(context);
-          } else if (index == 1) {
-            ScaffoldMessenger.of(
+            Navigator.pushReplacement(
               context,
-            ).showSnackBar(const SnackBar(content: Text("💬 Chat tapped")));
+              MaterialPageRoute(builder: (_) => const HomePage()),
+            );
+          } else if (index == 1) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ChatListPage()),
+            );
           } else if (index == 2) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => const ProfilePage()),
+              MaterialPageRoute(builder: (_) => ProfilePage(userName: _userName)),
             );
           }
         },
@@ -225,11 +240,11 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _buildSettingsTile(
-    IconData icon,
-    String title,
-    Color iconColor,
-    VoidCallback onTap,
-  ) {
+      IconData icon,
+      String title,
+      Color iconColor,
+      VoidCallback onTap,
+      ) {
     return ListTile(
       leading: Icon(icon, color: iconColor),
       title: Text(title),

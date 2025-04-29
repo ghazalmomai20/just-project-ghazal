@@ -28,7 +28,7 @@ class ElectronicsDetailsPage extends StatelessWidget {
           title,
           style: const TextStyle(color: Colors.white),
         ),
-        iconTheme: const IconThemeData(color: Colors.white),     
+        iconTheme: const IconThemeData(color: Colors.white),
         centerTitle: true,
       ),
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -105,7 +105,10 @@ class ElectronicsDetailsPage extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const ChatPage(userName: 'Admin'),
+                        builder: (_) => const ChatPage(
+                          userName: 'Admin',
+                          userAvatar: 'https://randomuser.me/api/portraits/men/10.jpg', // ✅ صورة رمزية إلكترونيات
+                        ),
                       ),
                     );
                   },

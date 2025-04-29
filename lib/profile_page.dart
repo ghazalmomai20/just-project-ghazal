@@ -12,23 +12,47 @@ import 'login_screen.dart';
 import 'chat_list_page.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  final String userName; // ✅ استلام اسم المستخدم
+  const ProfilePage({super.key, required this.userName});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage> {
+class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStateMixin {
   File? _imageFile;
-  String _username = 'Jonathan Patterson';
   String _email = 'hello@reallygreatsite.com';
   int _selectedIndex = 2;
   final int _unreadMessages = 5;
+
+  late AnimationController _controller;
+  late Animation<Offset> _slideAnimation;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
     _loadProfileData();
+
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0.0, 0.2),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+
+    _fadeAnimation = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
+
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   Future<void> _loadProfileData() async {
@@ -38,7 +62,6 @@ class _ProfilePageState extends State<ProfilePage> {
       _imageFile = File(imagePath);
     }
     setState(() {
-      _username = prefs.getString('username') ?? _username;
       _email = prefs.getString('email') ?? _email;
     });
   }
@@ -68,27 +91,26 @@ class _ProfilePageState extends State<ProfilePage> {
   void _confirmLogout() {
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Logout Confirmation'),
-            content: const Text('Do you want to logout?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('No'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                    (route) => false,
-                  );
-                },
-                child: const Text('Yes'),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: const Text('Logout Confirmation'),
+        content: const Text('Do you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('No'),
           ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (route) => false,
+              );
+            },
+            child: const Text('Yes'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -118,85 +140,87 @@ class _ProfilePageState extends State<ProfilePage> {
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            const SizedBox(height: 16),
-            GestureDetector(
-              onTap: _pickImage,
-              child: CircleAvatar(
-                radius: 50,
-                backgroundColor: Colors.grey.shade300,
-                backgroundImage:
-                    _imageFile != null ? FileImage(_imageFile!) : null,
-                child:
-                    _imageFile == null
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: SlideTransition(
+          position: _slideAnimation,
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: [
+                const SizedBox(height: 16),
+                GestureDetector(
+                  onTap: _pickImage,
+                  child: CircleAvatar(
+                    radius: 50,
+                    backgroundColor: Colors.grey.shade300,
+                    backgroundImage: _imageFile != null ? FileImage(_imageFile!) : null,
+                    child: _imageFile == null
                         ? const Icon(Icons.person, size: 50, color: Colors.blue)
                         : null,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              _username,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1746A2),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              _email,
-              style: TextStyle(
-                fontSize: 14,
-                color: isDark ? Colors.white70 : Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 30),
-            _buildProfileOption(
-              icon: Icons.phone,
-              label: 'Contact Info',
-              color: Colors.green,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ContactInfoPage()),
-                );
-              },
-            ),
-            _buildProfileOption(
-              icon: Icons.history,
-              label: 'Recent Activities',
-              color: Colors.pink,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const RecentActivitiesPage(),
                   ),
-                );
-              },
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  widget.userName, // ✅ عرض اسم المستخدم القادم
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1746A2),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _email,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: isDark ? Colors.white70 : Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 30),
+                _buildProfileOption(
+                  icon: Icons.phone,
+                  label: 'Contact Info',
+                  color: Colors.green,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ContactInfoPage()),
+                    );
+                  },
+                ),
+                _buildProfileOption(
+                  icon: Icons.history,
+                  label: 'Recent Activities',
+                  color: Colors.pink,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const RecentActivitiesPage()),
+                    );
+                  },
+                ),
+                _buildProfileOption(
+                  icon: Icons.security,
+                  label: 'Security Settings',
+                  color: Colors.amber,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => SecuritySettingsPage()),
+                    );
+                  },
+                ),
+                _buildProfileOption(
+                  icon: Icons.logout,
+                  label: 'Log out',
+                  color: Colors.red,
+                  isLogout: true,
+                  onTap: _confirmLogout,
+                ),
+              ],
             ),
-            _buildProfileOption(
-              icon: Icons.security,
-              label: 'Security Settings',
-              color: Colors.amber,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => SecuritySettingsPage()),
-                );
-              },
-            ),
-            _buildProfileOption(
-              icon: Icons.logout,
-              label: 'Log out',
-              color: Colors.red,
-              isLogout: true,
-              onTap: _confirmLogout,
-            ),
-          ],
+          ),
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(
