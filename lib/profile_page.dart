@@ -8,7 +8,7 @@ import 'package:path/path.dart' as path;
 import 'contact_info_page.dart';
 import 'security_settings_page.dart';
 import 'recent_activities_page.dart';
-import 'login_screen.dart';
+import 'login_page_v2.dart';
 import 'chat_list_page.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -103,7 +103,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
             onPressed: () {
               Navigator.pushAndRemoveUntil(
                 context,
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                MaterialPageRoute(builder: (_) => const LoginPageV2()),
                     (route) => false,
               );
             },

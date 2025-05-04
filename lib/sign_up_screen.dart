@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'auth_service.dart';
-import 'verify_code_page.dart'; // شاشة التحقق بالكود OTP
+import 'verify_code_page.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -16,6 +16,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final AuthService _authService = AuthService();
 
   bool agree = false;
   final List<String> takenUsernames = ['admin', 'testuser', 'ghazal'];
@@ -47,13 +48,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     try {
-      UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+      final userCredential = await _authService.signUpWithEmailAndPassword(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
       );
 
+      if (userCredential == null) {
+        throw Exception("Failed to create account");
+      }
+
       final email = _emailController.text.trim();
-      await AuthService.sendVerificationCode(email); // إرسال كود التحقق
+      await _authService.sendVerificationCode(email);
 
       if (!mounted) return;
 
@@ -70,15 +75,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => VerificationCodeScreen(email: email)),
+        MaterialPageRoute(builder: (_) => VerifyCodePage(email: email, isSignUp: true)),
       );
-
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       String message;
       switch (e.code) {
         case 'email-already-in-use':
-          message = 'This email is already in use.';
+          message = 'This email is already in use. Try logging in.';
           break;
         case 'invalid-email':
           message = 'The email address is invalid.';
@@ -95,6 +99,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       );
     } catch (e) {
       if (!mounted) return;
+      print("🔥 SIGN UP ERROR: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("❌ Something went wrong. Please try again.")),
       );

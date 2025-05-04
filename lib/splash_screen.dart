@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'login_screen.dart';
+import 'welcome_screen.dart'; // ← مهم: تأكد من وجود هذا الملف
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  SplashScreenState createState() => SplashScreenState(); // ✅ تم تعديل الاسم
+  SplashScreenState createState() => SplashScreenState();
 }
 
 class SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
@@ -17,10 +17,10 @@ class SplashScreenState extends State<SplashScreen> with SingleTickerProviderSta
   void initState() {
     super.initState();
 
-    Timer(const Duration(seconds: 6), () {
+    Timer(const Duration(seconds: 3), () {
       if (mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          MaterialPageRoute(builder: (context) => const WelcomeScreen()),
         );
       }
     });
@@ -59,7 +59,7 @@ class SplashScreenState extends State<SplashScreen> with SingleTickerProviderSta
           child: FadeTransition(
             opacity: _animation,
             child: Image.asset(
-              'assets/shopping_bag.png',
+              'assets/shopping_bag.png', // تأكد إن الصورة موجودة في assets
               width: 200,
               height: 200,
               fit: BoxFit.contain,

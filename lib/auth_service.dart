@@ -1,60 +1,97 @@
-import 'dart:math';
-import 'dart:convert';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthService {
-  static const _serviceId = 'service_x4z10io';
-  static const _templateId = 'template_k2a23lt';
-  static const _userId = '_1uQHfgWQLxqy2_aE';
+  static final AuthService _instance = AuthService._internal();
 
-  static Future<void> sendVerificationCode(String email) async {
-    final code = _generateCode();
+  factory AuthService() {
+    return _instance;
+  }
 
-    // Save code in Firestore
-    await FirebaseFirestore.instance
-        .collection('verifications')
-        .doc(email)
-        .set({
-      'code': code,
-      'createdAt': Timestamp.now(),
-    });
+  AuthService._internal();
 
-    // Send email via EmailJS
-    final url = Uri.parse('https://api.emailjs.com/api/v1.0/email/send');
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'service_id': _serviceId,
-        'template_id': _templateId,
-        'user_id': _userId,
-        'template_params': {
-          'to_email': email,
-          'code': code,
-        }
-      }),
-    );
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to send verification email');
+  // ✅ Method to send verification code via Firebase HTTP Function
+  Future<Map<String, dynamic>> sendVerificationCode(String email) async {
+    try {
+      final response = await http.post(
+        Uri.parse(
+          'https://us-central1-just-66-f51b6.cloudfunctions.net/sendVerificationCode',
+        ),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'email': email}),
+      );
+
+      if (response.statusCode == 200) {
+        print('✅ OTP sent successfully via HTTP function');
+        return json.decode(response.body);
+      } else {
+        print('❌ Failed to send OTP: ${response.body}');
+        throw Exception('Failed to send verification code');
+      }
+    } catch (e) {
+      print('❌ Error sending OTP: $e');
+      throw Exception('Failed to send verification code. Please try again later.');
     }
   }
 
-  static Future<bool> verifyCode(String email, String inputCode) async {
-    final doc = await FirebaseFirestore.instance
-        .collection('verifications')
-        .doc(email)
-        .get();
-
-    if (!doc.exists) return false;
-
-    final savedCode = doc['code'];
-    return inputCode == savedCode;
+  static Future<Map<String, dynamic>> sendVerificationCodeStatic(String email) async {
+    return await AuthService().sendVerificationCode(email);
   }
 
-  static String _generateCode() {
-    final random = Random();
-    return (100000 + random.nextInt(900000)).toString(); // 6-digit code
+  // ✅ Verify code from Firestore
+  Future<bool> verifyCode(String email, String code) async {
+    try {
+      final docSnapshot = await _firestore.collection('otp_codes').doc(email).get();
+
+      if (!docSnapshot.exists) {
+        print('⚠️ No verification code found for this email');
+        return false;
+      }
+
+      final data = docSnapshot.data();
+      final storedCode = data?['code'];
+      final expiresAt = data?['expiresAt'] as Timestamp?;
+
+      if (expiresAt != null && expiresAt.toDate().isBefore(DateTime.now())) {
+        print('⚠️ Verification code has expired');
+        return false;
+      }
+
+      return code == storedCode;
+    } catch (e) {
+      print('❌ Error verifying code: $e');
+      return false;
+    }
+  }
+
+  Future<UserCredential?> signInWithEmailAndPassword(String email, String password) async {
+    try {
+      return await _auth.signInWithEmailAndPassword(email: email, password: password);
+    } catch (e) {
+      print('❌ Error signing in: $e');
+      rethrow;
+    }
+  }
+
+  Future<UserCredential?> signUpWithEmailAndPassword(String email, String password) async {
+    try {
+      return await _auth.createUserWithEmailAndPassword(email: email, password: password);
+    } catch (e) {
+      print('❌ Error signing up: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> signOut() async {
+    return await _auth.signOut();
+  }
+
+  Future<void> resetPassword(String email) async {
+    return await _auth.sendPasswordResetEmail(email: email);
   }
 }

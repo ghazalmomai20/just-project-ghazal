@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'theme_provider.dart';
-import 'login_screen.dart';
 import 'forgot_password_screen.dart';
 import 'home_page.dart';
-import 'verify_email_screen.dart'; // تأكد من وجود الملف
 
 class LoginPageV2 extends StatefulWidget {
   const LoginPageV2({super.key});
@@ -32,6 +32,30 @@ class _LoginPageV2State extends State<LoginPageV2> {
     return allowedDomains.any((domain) => email.toLowerCase().endsWith('@$domain'));
   }
 
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedEmail();
+  }
+
+  Future<void> _loadSavedEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedEmail = prefs.getString('saved_email');
+    if (savedEmail != null) {
+      _emailController.text = savedEmail;
+      setState(() => rememberMe = true);
+    }
+  }
+
+  Future<void> _saveEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (rememberMe) {
+      await prefs.setString('saved_email', _emailController.text.trim());
+    } else {
+      await prefs.remove('saved_email');
+    }
+  }
+
   Future<void> _login() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
@@ -51,24 +75,12 @@ class _LoginPageV2State extends State<LoginPageV2> {
     }
 
     try {
-      UserCredential credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      User? user = credential.user;
-      await user?.reload();
-      user = FirebaseAuth.instance.currentUser;
-
-      if (user != null && !user.emailVerified) {
-        await FirebaseAuth.instance.signOut();
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const VerifyEmailScreen()),
-        );
-        return;
-      }
+      await _saveEmail();
 
       if (!mounted) return;
       Navigator.pushReplacement(
@@ -97,10 +109,7 @@ class _LoginPageV2State extends State<LoginPageV2> {
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: textColor),
           onPressed: () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const LoginScreen()),
-            );
+            Navigator.pop(context);
           },
         ),
       ),
@@ -127,10 +136,10 @@ class _LoginPageV2State extends State<LoginPageV2> {
                 gradient: isDark
                     ? null
                     : const LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Color(0xFF3891D6), Color(0xFF170557)],
-                      ),
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFF3891D6), Color(0xFF170557)],
+                ),
               ),
               child: SingleChildScrollView(
                 child: Column(

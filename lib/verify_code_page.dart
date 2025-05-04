@@ -1,203 +1,237 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'auth_service.dart'; // تأكدي أنه في نفس المسار أو غيريه حسب مسارك
+import 'package:pin_code_fields/pin_code_fields.dart';
+import 'auth_service.dart';
+import 'dart:async';
 
-class VerificationCodeScreen extends StatefulWidget {
+class VerifyCodePage extends StatefulWidget {
   final String email;
-  const VerificationCodeScreen({super.key, required this.email});
+  final bool isSignUp;
+
+  const VerifyCodePage({
+    Key? key,
+    required this.email,
+    this.isSignUp = true,
+  }) : super(key: key);
 
   @override
-  State<VerificationCodeScreen> createState() => _VerificationCodeScreenState();
+  _VerifyCodePageState createState() => _VerifyCodePageState();
 }
 
-class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
-  final List<TextEditingController> _controllers = List.generate(
-    6,
-    (index) => TextEditingController(),
-  );
-  final List<FocusNode> _focusNodes = List.generate(
-    6,
-    (index) => FocusNode(),
-  );
+class _VerifyCodePageState extends State<VerifyCodePage> {
+  final AuthService _authService = AuthService();
+  final TextEditingController _pinController = TextEditingController();
 
-  bool _isVerifying = false;
-  bool _isVerified = false;
+  bool _isLoading = false;
+  bool _isResending = false;
+  String _errorMessage = '';
+  int _remainingTime = 300;
+  late Timer _timer;
 
   @override
-  void dispose() {
-    for (final controller in _controllers) {
-      controller.dispose();
-    }
-    for (final node in _focusNodes) {
-      node.dispose();
-    }
-    super.dispose();
+  void initState() {
+    super.initState();
+    _startTimer();
   }
 
-  void _verifyCode() async {
-    final code = _controllers.map((c) => c.text).join();
+  void _startTimer() {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_remainingTime > 0) {
+        setState(() {
+          _remainingTime--;
+        });
+      } else {
+        _timer.cancel();
+      }
+    });
+  }
 
-    if (code.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('الرجاء إدخال الرمز كاملاً')),
-      );
+  Future<void> _verifyCode() async {
+    if (_pinController.text.length != 6) {
+      setState(() {
+        _errorMessage = 'Please enter the complete 6-digit code';
+      });
       return;
     }
 
-    setState(() => _isVerifying = true);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
 
     try {
-      final success = await AuthService.verifyCode(widget.email, code);
+      final isValid = await _authService.verifyCode(
+        widget.email,
+        _pinController.text,
+      );
 
-      if (!mounted) return;
-
-      setState(() {
-        _isVerifying = false;
-        _isVerified = success;
-      });
-
-      if (success) {
-        Navigator.of(context).pushReplacementNamed('/home');
+      if (isValid) {
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/home'); // ✅ direct to home
+        }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('رمز غير صحيح. حاول مرة أخرى.')),
-        );
+        if (mounted) {
+          setState(() {
+            _errorMessage = 'Invalid verification code. Please try again.';
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
-      if (!mounted) return;
-      setState(() => _isVerifying = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('خطأ أثناء التحقق: $e')),
-      );
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Error verifying code: ${e.toString()}';
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  void _openOutlook() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('جاري فتح Outlook...')),
-    );
+  Future<void> _resendCode() async {
+    if (_remainingTime > 0) return;
+
+    setState(() {
+      _isResending = true;
+      _errorMessage = '';
+    });
+
+    try {
+      await _authService.sendVerificationCode(widget.email);
+
+      if (mounted) {
+        setState(() {
+          _isResending = false;
+          _remainingTime = 300;
+          _startTimer();
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Verification code resent')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Error sending code: ${e.toString()}';
+          _isResending = false;
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    _pinController.dispose();
+    super.dispose();
+  }
+
+  String _formatTime(int seconds) {
+    int minutes = seconds ~/ 60;
+    int remainingSeconds = seconds % 60;
+    return '$minutes:${remainingSeconds.toString().padLeft(2, '0')}';
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.blue, Color(0xFF0D47A1)],
-          ),
-        ),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      "We've sent a verification code to your university email",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 40),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(
-                        6,
-                        (index) => _buildCodeDigitField(index),
-                      ),
-                    ),
-                    const SizedBox(height: 40),
-                    ElevatedButton.icon(
-                      onPressed: _openOutlook,
-                      icon: const Icon(Icons.email_outlined, color: Colors.blue),
-                      label: const Text(
-                        'open outlook',
-                        style: TextStyle(color: Colors.blue),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue[100],
-                        foregroundColor: Colors.blue[800],
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    if (!_isVerified)
-                      ElevatedButton(
-                        onPressed: _isVerifying ? null : _verifyCode,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue[300],
-                          foregroundColor: Colors.blue[900],
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
-                          disabledBackgroundColor: Colors.blue[300]!.withAlpha(128),
-                        ),
-                        child: Text(_isVerifying ? 'Verifying...' : 'Verify Code'),
-                      ),
-                    if (_isVerified)
-                      const Text(
-                        'Verification successful!',
-                        style: TextStyle(
-                          color: Colors.greenAccent,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                  ],
+      appBar: AppBar(
+        title: const Text('Verify Email'),
+        elevation: 0,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const SizedBox(height: 20),
+            Text(
+              'Verification Code',
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Please enter the 6-digit code sent to ${widget.email}',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 40),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 30),
+              child: PinCodeTextField(
+                appContext: context,
+                length: 6,
+                controller: _pinController,
+                onChanged: (value) {
+                  if (_errorMessage.isNotEmpty) {
+                    setState(() {
+                      _errorMessage = '';
+                    });
+                  }
+                },
+                onCompleted: (_) => _verifyCode(),
+                pinTheme: PinTheme(
+                  shape: PinCodeFieldShape.box,
+                  borderRadius: BorderRadius.circular(8),
+                  fieldHeight: 50,
+                  fieldWidth: 40,
+                  activeFillColor: Colors.white,
+                  inactiveFillColor: Colors.white,
+                  selectedFillColor: Colors.white,
+                  activeColor: Theme.of(context).primaryColor,
+                  inactiveColor: Colors.grey.shade300,
+                  selectedColor: Theme.of(context).primaryColor,
                 ),
+                keyboardType: TextInputType.number,
+                enableActiveFill: true,
+                animationType: AnimationType.fade,
               ),
             ),
-          ),
+            if (_errorMessage.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: Text(
+                  _errorMessage,
+                  style: const TextStyle(color: Colors.red),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text('Code expires in: '),
+                Text(
+                  _formatTime(_remainingTime),
+                  style: TextStyle(
+                    color: _remainingTime < 60 ? Colors.red : Colors.green,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 40),
+            ElevatedButton(
+              onPressed: _isLoading ? null : _verifyCode,
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 50),
+              ),
+              child: _isLoading
+                  ? const CircularProgressIndicator()
+                  : const Text('Verify'),
+            ),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: _remainingTime > 0 || _isResending ? null : _resendCode,
+              child: _isResending
+                  ? const Text('Sending...')
+                  : Text(
+                _remainingTime > 0
+                    ? 'Resend code in ${_formatTime(_remainingTime)}'
+                    : 'Resend code',
+              ),
+            ),
+          ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildCodeDigitField(int index) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: Colors.blue[100],
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: TextField(
-        controller: _controllers[index],
-        focusNode: _focusNodes[index],
-        textAlign: TextAlign.center,
-        keyboardType: TextInputType.number,
-        maxLength: 1,
-        style: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-          color: Colors.blue[800],
-        ),
-        decoration: const InputDecoration(
-          counterText: '',
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.zero,
-        ),
-        inputFormatters: [
-          FilteringTextInputFormatter.digitsOnly,
-        ],
-        onChanged: (value) {
-          if (value.isNotEmpty && index < 5) {
-            _focusNodes[index + 1].requestFocus();
-          }
-        },
       ),
     );
   }

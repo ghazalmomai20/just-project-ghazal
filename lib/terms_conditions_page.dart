@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'login_screen.dart';
+import 'login_page_v2.dart';
 import 'settings_page.dart';
 
 class TermsAndConditionsPage extends StatelessWidget {
@@ -122,7 +122,7 @@ class TermsAndConditionsPage extends StatelessWidget {
                       onPressed: () {
                         Navigator.pushReplacement(
                           context,
-                          MaterialPageRoute(builder: (_) =>  const LoginScreen()),
+                          MaterialPageRoute(builder: (_) =>  const LoginPageV2()),
                         );
                       },
                       style: ElevatedButton.styleFrom(

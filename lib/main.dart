@@ -2,30 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
+
 import 'theme_provider.dart';
-// ignore: unused_import
-import 'splash_screen.dart';
 import 'providers/product_provider.dart';
+import 'splash_screen.dart';
+import 'verify_code_page.dart';
+import 'home_page.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-    FlutterLocalNotificationsPlugin();
+FlutterLocalNotificationsPlugin();
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
     await Firebase.initializeApp();
-    debugPrint('****Firebase initialized successfully');
+    debugPrint('✅ Firebase initialized successfully');
   } catch (e) {
-    debugPrint('**** Error initializing Firebase: $e');
+    debugPrint('❌ Error initializing Firebase: $e');
   }
 
-  const AndroidInitializationSettings androidInit =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
-
-  const InitializationSettings initSettings = InitializationSettings(
-    android: androidInit,
-  );
-
+  const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const initSettings = InitializationSettings(android: androidInit);
   await flutterLocalNotificationsPlugin.initialize(initSettings);
 
   runApp(
@@ -50,6 +48,12 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: themeProvider.isDarkMode ? ThemeData.dark() : ThemeData.light(),
       home: const SplashScreen(),
+      routes: {
+        '/home': (context) => const HomePage(),
+        '/verify': (context) => const VerifyCodePage(email: 'test@example.com'), // فقط للتجريب
+        // '/create_password': (context) => CreatePasswordPage(), ← أضفها إذا تحتاج
+        // '/reset_password': (context) => ResetPasswordPage(), ← أضفها أيضًا إذا لازم
+      },
     );
   }
 }
