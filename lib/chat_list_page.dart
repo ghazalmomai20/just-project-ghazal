@@ -1,6 +1,9 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'chat_page.dart';
+// ignore: unused_import
 import 'dart:math' as math;
 
 class ChatListPage extends StatefulWidget {

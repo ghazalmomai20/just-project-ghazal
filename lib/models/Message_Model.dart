@@ -1,3 +1,6 @@
+// ignore: file_names
+// ignore: file_names
+// ignore: file_names
 // lib/models/message_model.dart
 class Message {
   final String id;

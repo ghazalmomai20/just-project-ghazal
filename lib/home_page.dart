@@ -1,3 +1,5 @@
+// ✅ Full HomePage.dart with NotificationsPage integrated
+// ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -7,7 +9,7 @@ import 'settings_page.dart';
 import 'chat_list_page.dart';
 import 'favorites_page.dart';
 import 'profile_page.dart';
-import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'pages/notifications_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -19,7 +21,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
   String _username = 'User';
   String _selectedCategory = 'All';
-  String _searchQuery = ''; // ✅ متغير البحث الجديد
+  String _searchQuery = '';
   final Color _primaryColor = const Color(0xFF1976D2);
   final Color _backgroundColor = const Color(0xFFF5F7FA);
 
@@ -44,6 +46,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     _fadeAnimation = CurvedAnimation(parent: _fadeController, curve: Curves.easeIn);
     _fadeController.forward();
   }
+  
 
   @override
   void dispose() {
@@ -112,7 +115,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             ],
           ),
           const Spacer(),
-          _buildAnimatedIcon(Icons.notifications_outlined, () {}),
+          _buildAnimatedIcon(Icons.notifications_outlined, () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NotificationsPage()),
+            );
+          }),
           _buildAnimatedIcon(Icons.settings, () {
             Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage()));
           }),
@@ -260,9 +268,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     final query = _selectedCategory == 'All'
         ? FirebaseFirestore.instance.collection('posts').orderBy('timestamp', descending: true)
         : FirebaseFirestore.instance
-        .collection('posts')
-        .where('category', isEqualTo: _selectedCategory)
-        .orderBy('timestamp', descending: true);
+            .collection('posts')
+            .where('category', isEqualTo: _selectedCategory)
+            .orderBy('timestamp', descending: true);
 
     return StreamBuilder<QuerySnapshot>(
       stream: query.snapshots(),
@@ -275,10 +283,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         final filteredPosts = _searchQuery.isEmpty
             ? posts
             : posts.where((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          final name = data['name']?.toLowerCase() ?? '';
-          return name.contains(_searchQuery.toLowerCase());
-        }).toList();
+                final data = doc.data() as Map<String, dynamic>;
+                final name = data['name']?.toLowerCase() ?? '';
+                return name.contains(_searchQuery.toLowerCase());
+              }).toList();
 
         if (filteredPosts.isEmpty) {
           return const Center(child: Text('No posts found.'));

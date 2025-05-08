@@ -7,6 +7,7 @@ class VerifyCodePage extends StatefulWidget {
   final String email;
   final bool isSignUp;
 
+  // ignore: use_super_parameters
   const VerifyCodePage({
     Key? key,
     required this.email,
@@ -14,6 +15,7 @@ class VerifyCodePage extends StatefulWidget {
   }) : super(key: key);
 
   @override
+  // ignore: library_private_types_in_public_api
   _VerifyCodePageState createState() => _VerifyCodePageState();
 }
 

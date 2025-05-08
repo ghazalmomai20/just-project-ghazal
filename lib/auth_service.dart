@@ -27,13 +27,16 @@ class AuthService {
       );
 
       if (response.statusCode == 200) {
+        // ignore: avoid_print
         print('✅ OTP sent successfully via HTTP function');
         return json.decode(response.body);
       } else {
+        // ignore: avoid_print
         print('❌ Failed to send OTP: ${response.body}');
         throw Exception('Failed to send verification code');
       }
     } catch (e) {
+      // ignore: avoid_print
       print('❌ Error sending OTP: $e');
       throw Exception('Failed to send verification code. Please try again later.');
     }
@@ -49,6 +52,7 @@ class AuthService {
       final docSnapshot = await _firestore.collection('otp_codes').doc(email).get();
 
       if (!docSnapshot.exists) {
+        // ignore: avoid_print
         print('⚠️ No verification code found for this email');
         return false;
       }
@@ -58,12 +62,14 @@ class AuthService {
       final expiresAt = data?['expiresAt'] as Timestamp?;
 
       if (expiresAt != null && expiresAt.toDate().isBefore(DateTime.now())) {
+        // ignore: avoid_print
         print('⚠️ Verification code has expired');
         return false;
       }
 
       return code == storedCode;
     } catch (e) {
+      // ignore: avoid_print
       print('❌ Error verifying code: $e');
       return false;
     }
@@ -73,6 +79,7 @@ class AuthService {
     try {
       return await _auth.signInWithEmailAndPassword(email: email, password: password);
     } catch (e) {
+      // ignore: avoid_print
       print('❌ Error signing in: $e');
       rethrow;
     }
@@ -82,6 +89,7 @@ class AuthService {
     try {
       return await _auth.createUserWithEmailAndPassword(email: email, password: password);
     } catch (e) {
+      // ignore: avoid_print
       print('❌ Error signing up: $e');
       rethrow;
     }

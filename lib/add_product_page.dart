@@ -96,7 +96,9 @@ class _AddProductPageState extends State<AddProductPage> {
 
     final imageUrl = await _uploadImageToCloudinary(images[0]);
     if (imageUrl.isEmpty) {
+      // ignore: use_build_context_synchronously
       Navigator.of(context).pop(); // Close loading dialog
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("❗ Failed to upload image. Please try again.")),
       );
@@ -131,6 +133,7 @@ class _AddProductPageState extends State<AddProductPage> {
     const mainColor = Color(0xFF2D63B0);
     const background = Colors.white;
     const textColor = Colors.black;
+    // ignore: prefer_const_declarations
     final fieldColor = Colors.grey;
 
     return Scaffold(

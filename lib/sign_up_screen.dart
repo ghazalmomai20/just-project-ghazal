@@ -99,6 +99,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       );
     } catch (e) {
       if (!mounted) return;
+      // ignore: avoid_print
       print("🔥 SIGN UP ERROR: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("❌ Something went wrong. Please try again.")),

@@ -111,6 +111,7 @@ class ChatService {
         .get();
 
     WriteBatch batch = _firestore.batch();
+    // ignore: avoid_function_literals_in_foreach_calls
     unreadMessages.docs.forEach((doc) {
       batch.update(doc.reference, {'isRead': true});
     });
