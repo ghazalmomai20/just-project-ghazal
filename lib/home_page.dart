@@ -1,5 +1,4 @@
-// ✅ Full HomePage.dart with NotificationsPage integrated
-// ignore_for_file: deprecated_member_use
+// ✅ Full HomePage.dart - Fixed for Dark Mode and Design Adjustments
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,7 +8,7 @@ import 'settings_page.dart';
 import 'chat_list_page.dart';
 import 'favorites_page.dart';
 import 'profile_page.dart';
-import 'pages/notifications_page.dart';
+import 'notifications.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -22,8 +21,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   String _username = 'User';
   String _selectedCategory = 'All';
   String _searchQuery = '';
-  final Color _primaryColor = const Color(0xFF1976D2);
-  final Color _backgroundColor = const Color(0xFFF5F7FA);
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -46,7 +43,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     _fadeAnimation = CurvedAnimation(parent: _fadeController, curve: Curves.easeIn);
     _fadeController.forward();
   }
-  
 
   @override
   void dispose() {
@@ -63,83 +59,71 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
+    const primaryColor = Color(0xFF1746A2);
+    final backgroundColor = Theme.of(context).scaffoldBackgroundColor;
+
     return Scaffold(
-      backgroundColor: _backgroundColor,
+      backgroundColor: backgroundColor,
       body: SafeArea(
         child: FadeTransition(
           opacity: _fadeAnimation,
           child: Column(
             children: [
-              _buildAppBar(context),
-              _buildSearchBar(),
-              SizedBox(height: 80, child: _buildCategorySelector()),
+              _buildAppBar(context, primaryColor),
+              const SizedBox(height: 8), // ⬇️ lowered icons section
+              _buildSearchBar(primaryColor),
+              SizedBox(height: 80, child: _buildCategorySelector(primaryColor)),
               Expanded(child: _buildPostsGrid()),
             ],
           ),
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: _primaryColor,
+        backgroundColor: primaryColor,
         onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const AddProductPage()),
-          );
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const AddProductPage()));
         },
         child: const Icon(Icons.add, color: Colors.white),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: _buildBottomNavBar(),
+      bottomNavigationBar: _buildBottomNavBar(primaryColor),
     );
   }
 
-  Widget _buildAppBar(BuildContext context) {
+  Widget _buildAppBar(BuildContext context, Color primaryColor) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: _primaryColor,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      color: primaryColor,
       child: Row(
         children: [
-          CircleAvatar(
-            backgroundColor: Colors.white.withOpacity(0.3),
-            child: const Icon(Icons.person, color: Colors.white),
-          ),
+          const CircleAvatar(child: Icon(Icons.person, color: Colors.white)),
           const SizedBox(width: 12),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ignore: deprecated_member_use
               Text("Welcome,", style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 14)),
-              Text(
-                _username,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
-              ),
+              Text(_username, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
             ],
           ),
           const Spacer(),
-          _buildAnimatedIcon(Icons.notifications_outlined, () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const NotificationsPage()),
-            );
-          }),
-          _buildAnimatedIcon(Icons.settings, () {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage()));
-          }),
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsPage())),
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings, color: Colors.white),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage())),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildAnimatedIcon(IconData icon, VoidCallback onPressed) {
-    return IconButton(
-      icon: Icon(icon, color: Colors.white),
-      onPressed: onPressed,
-    );
-  }
-
-  Widget _buildSearchBar() {
+  Widget _buildSearchBar(Color primaryColor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      color: _primaryColor,
+      color: primaryColor,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         height: 40,
@@ -153,11 +137,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             const SizedBox(width: 8),
             Expanded(
               child: TextField(
-                onChanged: (value) {
-                  setState(() {
-                    _searchQuery = value;
-                  });
-                },
+                onChanged: (value) => setState(() => _searchQuery = value),
                 decoration: const InputDecoration(
                   hintText: 'Search posts...',
                   border: InputBorder.none,
@@ -166,14 +146,14 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 ),
               ),
             ),
-            Icon(Icons.filter_list, color: _primaryColor, size: 20),
+            Icon(Icons.filter_list, color: primaryColor, size: 20),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildCategorySelector() {
+  Widget _buildCategorySelector(Color primaryColor) {
     return ListView.builder(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -193,14 +173,15 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   height: 40,
                   width: 40,
                   decoration: BoxDecoration(
-                    color: isSelected ? _primaryColor : Colors.white,
+                    color: isSelected ? primaryColor : Colors.white,
                     borderRadius: BorderRadius.circular(10),
+                    // ignore: deprecated_member_use
                     boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)],
                   ),
                   child: Icon(
                     category['icon'],
                     size: 20,
-                    color: isSelected ? Colors.white : _primaryColor,
+                    color: isSelected ? Colors.white : primaryColor,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -209,7 +190,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    color: isSelected ? _primaryColor : Colors.grey[700],
+                    color: isSelected ? primaryColor : Colors.grey[700],
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -221,28 +202,28 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     );
   }
 
-  Widget _buildBottomNavBar() {
+  Widget _buildBottomNavBar(Color primaryColor) {
     return BottomAppBar(
       shape: const CircularNotchedRectangle(),
       notchMargin: 6,
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surface,
       child: SizedBox(
         height: 56,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _buildNavItem(Icons.home, 'Home', true),
-            _buildNavItem(Icons.favorite_border, 'Favorites', false),
+            _buildNavItem(Icons.home, 'Home', true, primaryColor),
+            _buildNavItem(Icons.favorite_border, 'Favorites', false, primaryColor),
             const SizedBox(width: 32),
-            _buildNavItem(Icons.chat_bubble_outline, 'Messages', false),
-            _buildNavItem(Icons.person_outline, 'Profile', false),
+            _buildNavItem(Icons.chat_bubble_outline, 'Messages', false, primaryColor),
+            _buildNavItem(Icons.person_outline, 'Profile', false, primaryColor),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildNavItem(IconData icon, String label, bool isSelected) {
+  Widget _buildNavItem(IconData icon, String label, bool isSelected, Color primaryColor) {
     return InkWell(
       onTap: () {
         if (label == 'Favorites') {
@@ -256,21 +237,16 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: isSelected ? _primaryColor : Colors.grey[600], size: 20),
+          Icon(icon, color: isSelected ? primaryColor : Colors.grey[600], size: 20),
           const SizedBox(height: 1),
-          Text(label, style: TextStyle(fontSize: 10, color: isSelected ? _primaryColor : Colors.grey[600])),
+          Text(label, style: TextStyle(fontSize: 10, color: isSelected ? primaryColor : Colors.grey[600])),
         ],
       ),
     );
   }
 
   Widget _buildPostsGrid() {
-    final query = _selectedCategory == 'All'
-        ? FirebaseFirestore.instance.collection('posts').orderBy('timestamp', descending: true)
-        : FirebaseFirestore.instance
-            .collection('posts')
-            .where('category', isEqualTo: _selectedCategory)
-            .orderBy('timestamp', descending: true);
+    final query = FirebaseFirestore.instance.collection('posts').orderBy('timestamp', descending: true);
 
     return StreamBuilder<QuerySnapshot>(
       stream: query.snapshots(),
@@ -279,18 +255,16 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
 
         final posts = snapshot.data!.docs;
+        final filteredPosts = posts.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          final name = data['name']?.toLowerCase() ?? '';
+          final category = data['category'] ?? '';
+          final matchesSearch = name.contains(_searchQuery.toLowerCase());
+          final matchesCategory = _selectedCategory == 'All' || category == _selectedCategory;
+          return matchesSearch && matchesCategory;
+        }).toList();
 
-        final filteredPosts = _searchQuery.isEmpty
-            ? posts
-            : posts.where((doc) {
-                final data = doc.data() as Map<String, dynamic>;
-                final name = data['name']?.toLowerCase() ?? '';
-                return name.contains(_searchQuery.toLowerCase());
-              }).toList();
-
-        if (filteredPosts.isEmpty) {
-          return const Center(child: Text('No posts found.'));
-        }
+        if (filteredPosts.isEmpty) return const Center(child: Text('No posts found.'));
 
         return GridView.builder(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -309,8 +283,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
             return Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(12),
+                // ignore: deprecated_member_use
                 boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
               ),
               child: Column(
@@ -329,7 +304,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                       children: [
                         Text(name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 2),
-                        Text("\$$price", style: TextStyle(color: _primaryColor, fontSize: 14)),
+                        Text("\$$price", style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 14)),
                       ],
                     ),
                   ),
