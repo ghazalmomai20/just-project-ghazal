@@ -55,3 +55,39 @@ exports.sendVerificationCode = onRequest(
     });
   }
 );
+
+exports.sendNotification = onRequest(async (req, res) => {
+  if (req.method !== "POST") {
+    return res.status(405).send("Method Not Allowed");
+  }
+
+  const { userId, title, body } = req.body;
+
+  if (!userId || !title || !body) {
+    return res.status(400).send("userId, title, and body are required");
+  }
+
+  try {
+    // Get the user's FCM token from Firestore
+    const userDoc = await admin.firestore().collection("users").doc(userId).get();
+    const userData = userDoc.data();
+
+    if (!userData || !userData.fcmToken) {
+      return res.status(404).send("User not found or missing FCM token");
+    }
+
+    const message = {
+      token: userData.fcmToken,
+      notification: {
+        title,
+        body,
+      },
+    };
+
+    await admin.messaging().send(message);
+    res.status(200).send({ success: true, message: "Notification sent" });
+  } catch (error) {
+    console.error("❌ Error sending notification:", error);
+    res.status(500).send("Failed to send notification");
+  }
+});

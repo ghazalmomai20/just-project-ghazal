@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path/path.dart' as path;
+import 'package:firebase_auth/firebase_auth.dart';
 
 import 'contact_info_page.dart';
 import 'security_settings_page.dart';
@@ -12,7 +13,7 @@ import 'login_page_v2.dart';
 import 'chat_list_page.dart';
 
 class ProfilePage extends StatefulWidget {
-  final String userName; // ✅ استلام اسم المستخدم
+  final String userName;
   const ProfilePage({super.key, required this.userName});
 
   @override
@@ -33,6 +34,8 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   void initState() {
     super.initState();
     _loadProfileData();
+
+    _email = FirebaseAuth.instance.currentUser?.email ?? _email;
 
     _controller = AnimationController(
       duration: const Duration(milliseconds: 800),
@@ -61,9 +64,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     if (imagePath != null && File(imagePath).existsSync()) {
       _imageFile = File(imagePath);
     }
-    setState(() {
-      _email = prefs.getString('email') ?? _email;
-    });
+    setState(() {});
   }
 
   Future<void> _pickImage() async {
@@ -100,7 +101,9 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
             child: const Text('No'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+              if (!mounted) return;
               Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(builder: (_) => const LoginPageV2()),
@@ -162,7 +165,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  widget.userName, // ✅ عرض اسم المستخدم القادم
+                  widget.userName,
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,

@@ -1,5 +1,8 @@
+// 📄 sign_up_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'auth_service.dart';
 import 'verify_code_page.dart';
 
@@ -57,7 +60,28 @@ class _SignUpScreenState extends State<SignUpScreen> {
         throw Exception("Failed to create account");
       }
 
+      final user = userCredential.user;
       final email = _emailController.text.trim();
+      final username = _usernameController.text.trim();
+
+      // ✅ تحديث اسم المستخدم في Firebase Auth
+      await user!.updateDisplayName(username);
+
+      // ✅ الحصول على FCM Token
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+
+      // ✅ تخزين بيانات المستخدم + FCM Token في Firestore
+      if (fcmToken != null) {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'uid': user.uid,
+          'email': email,
+          'username': username,
+          'fcmToken': fcmToken,
+          'createdAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+
+      // ✅ إرسال كود التحقق
       await _authService.sendVerificationCode(email);
 
       if (!mounted) return;
@@ -75,7 +99,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => VerifyCodePage(email: email, isSignUp: true)),
+        MaterialPageRoute(
+          builder: (_) => VerifyCodePage(email: email, isSignUp: true),
+        ),
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -104,6 +130,99 @@ class _SignUpScreenState extends State<SignUpScreen> {
         const SnackBar(content: Text("❌ Something went wrong. Please try again.")),
       );
     }
+  }
+
+  Widget _buildHeader(bool isDark) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark
+              ? [Colors.grey.shade800, Colors.black87]
+              : [const Color(0xFF3891D6), const Color(0xFF170557)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(30),
+          topRight: Radius.circular(30),
+        ),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("Let's", style: TextStyle(fontSize: 28, color: Colors.white)),
+          Text("Create", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+          Text("Your Account", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    bool obscure = false,
+    String? Function(String?)? validator,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return TextFormField(
+      controller: controller,
+      obscureText: obscure,
+      validator: validator,
+      style: TextStyle(color: isDark ? Colors.white : Colors.black),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
+        prefixIcon: Icon(icon, color: isDark ? Colors.white70 : Colors.black87),
+        filled: true,
+        fillColor: isDark ? Colors.grey.shade800 : Colors.white,
+        contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.black12),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide: BorderSide(color: isDark ? Colors.blue.shade200 : Colors.blue),
+        ),
+        errorStyle: const TextStyle(color: Colors.red, fontSize: 12),
+      ),
+    );
+  }
+
+  Widget _buildSignUpButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: agree ? _registerWithFirebase : null,
+        style: ElevatedButton.styleFrom(
+          padding: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        ),
+        child: Ink(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF3891D6), Color(0xFF170557)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            borderRadius: BorderRadius.all(Radius.circular(30)),
+          ),
+          child: Container(
+            alignment: Alignment.center,
+            constraints: const BoxConstraints(minHeight: 50),
+            child: const Text(
+              "Sign Up",
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -212,99 +331,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
               )
             ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(bool isDark) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isDark
-              ? [Colors.grey.shade800, Colors.black87]
-              : [const Color(0xFF3891D6), const Color(0xFF170557)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(30),
-          topRight: Radius.circular(30),
-        ),
-      ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text("Let's", style: TextStyle(fontSize: 28, color: Colors.white)),
-          Text("Create", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
-          Text("Your Account", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String hint,
-    required IconData icon,
-    bool obscure = false,
-    String? Function(String?)? validator,
-  }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return TextFormField(
-      controller: controller,
-      obscureText: obscure,
-      validator: validator,
-      style: TextStyle(color: isDark ? Colors.white : Colors.black),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
-        prefixIcon: Icon(icon, color: isDark ? Colors.white70 : Colors.black87),
-        filled: true,
-        fillColor: isDark ? Colors.grey.shade800 : Colors.white,
-        contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30),
-          borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.black12),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30),
-          borderSide: BorderSide(color: isDark ? Colors.blue.shade200 : Colors.blue),
-        ),
-        errorStyle: const TextStyle(color: Colors.red, fontSize: 12),
-      ),
-    );
-  }
-
-  Widget _buildSignUpButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: agree ? _registerWithFirebase : null,
-        style: ElevatedButton.styleFrom(
-          padding: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-        ),
-        child: Ink(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF3891D6), Color(0xFF170557)],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-            borderRadius: BorderRadius.all(Radius.circular(30)),
-          ),
-          child: Container(
-            alignment: Alignment.center,
-            constraints: const BoxConstraints(minHeight: 50),
-            child: const Text(
-              "Sign Up",
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-            ),
           ),
         ),
       ),

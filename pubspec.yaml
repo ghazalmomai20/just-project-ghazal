@@ -22,6 +22,7 @@ dependencies:
   cloud_firestore: ^4.15.5
   firebase_storage: ^11.6.6
   cloud_functions: ^4.5.3
+  firebase_messaging: ^14.7.14
 
 
   # HTTP for Cloudinary

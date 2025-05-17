@@ -1,11 +1,82 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-class SecuritySettingsPage extends StatelessWidget {
-  SecuritySettingsPage({super.key});
+class SecuritySettingsPage extends StatefulWidget {
+  const SecuritySettingsPage({super.key});
 
+  @override
+  State<SecuritySettingsPage> createState() => _SecuritySettingsPageState();
+}
+
+class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
   final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmController = TextEditingController();
+  final TextEditingController currentPasswordController = TextEditingController();
+  final TextEditingController newPasswordController = TextEditingController();
+  final TextEditingController confirmPasswordController = TextEditingController();
+
+  bool showPassword = false;
+  bool isLoading = false;
+  final user = FirebaseAuth.instance.currentUser;
+
+  @override
+  void initState() {
+    super.initState();
+    emailController.text = user?.email ?? '';
+  }
+
+  Future<void> reauthenticateUser(String password) async {
+    final credential = EmailAuthProvider.credential(
+      email: user!.email!,
+      password: password,
+    );
+    await user!.reauthenticateWithCredential(credential);
+  }
+
+  Future<void> saveChanges() async {
+    setState(() => isLoading = true);
+
+    try {
+      await reauthenticateUser(currentPasswordController.text.trim());
+
+      if (emailController.text.trim() != user?.email) {
+        await user?.updateEmail(emailController.text.trim());
+        await user?.sendEmailVerification();
+        _showSuccess('✔ Email updated. Check your Outlook.');
+        setState(() => isLoading = false);
+        return;
+      }
+
+      if (newPasswordController.text.isNotEmpty) {
+        if (newPasswordController.text == confirmPasswordController.text) {
+          await user?.updatePassword(newPasswordController.text);
+          _showSuccess('✔ Password updated successfully');
+        } else {
+          _showError('❌ Passwords do not match');
+          return;
+        }
+      }
+
+      if (newPasswordController.text.isEmpty) {
+        _showSuccess('✔ No changes detected.');
+      }
+    } catch (e) {
+      _showError('❌ ${e.toString()}');
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.green),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,47 +89,8 @@ class SecuritySettingsPage extends StatelessWidget {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
         children: [
-          Stack(
-            children: [
-              Container(
-                height: 140,
-                decoration: const BoxDecoration(
-                  color: mainColor,
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(50),
-                    bottomRight: Radius.circular(50),
-                  ),
-                ),
-              ),
-              SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 10, top: 10),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white),
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
-                      ),
-                      const SizedBox(width: 10),
-                      const Text(
-                        "Security Settings",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      )
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-
+          _buildHeader(mainColor),
           const SizedBox(height: 30),
-
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 25),
             child: Column(
@@ -69,25 +101,32 @@ class SecuritySettingsPage extends StatelessWidget {
                 _buildInputField(emailController, fieldColor, textColor),
 
                 const SizedBox(height: 20),
-                _buildLabel("Edit your Password:", textColor),
+                _buildLabel("Current Password (for verification):", textColor),
                 const SizedBox(height: 8),
-                _buildInputField(passwordController, fieldColor, textColor, isPassword: true),
+                _buildInputField(currentPasswordController, fieldColor, textColor, isPassword: true),
 
                 const SizedBox(height: 20),
-                _buildLabel("Confirm your Password:", textColor),
+                _buildLabel("New Password:", textColor),
                 const SizedBox(height: 8),
-                _buildInputField(confirmController, fieldColor, textColor, isPassword: true),
+                _buildInputField(newPasswordController, fieldColor, textColor, isPassword: true),
+
+                const SizedBox(height: 20),
+                _buildLabel("Confirm New Password:", textColor),
+                const SizedBox(height: 8),
+                _buildInputField(confirmPasswordController, fieldColor, textColor, isPassword: true),
 
                 const SizedBox(height: 30),
                 Center(
                   child: ElevatedButton.icon(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("✔️ Changes saved")),
-                      );
-                    },
-                    icon: const Icon(Icons.save),
-                    label: const Text("Save"),
+                    onPressed: isLoading ? null : saveChanges,
+                    icon: isLoading
+                        ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    )
+                        : const Icon(Icons.save),
+                    label: Text(isLoading ? "Saving..." : "Save"),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: mainColor,
                       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
@@ -105,27 +144,61 @@ class SecuritySettingsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildLabel(String text, Color color) {
-    return Text(
-      text,
-      style: TextStyle(
-        fontWeight: FontWeight.bold,
-        color: color,
-      ),
+  Widget _buildHeader(Color mainColor) {
+    return Stack(
+      children: [
+        Container(
+          height: 140,
+          decoration: BoxDecoration(
+            color: mainColor,
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(50),
+              bottomRight: Radius.circular(50),
+            ),
+          ),
+        ),
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.only(left: 10, top: 10),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                const SizedBox(width: 10),
+                const Text(
+                  "Security Settings",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                )
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildInputField(
-    TextEditingController controller,
-    Color bgColor,
-    Color textColor, {
-    bool isPassword = false,
-  }) {
+  Widget _buildLabel(String text, Color color) {
+    return Text(text, style: TextStyle(fontWeight: FontWeight.bold, color: color));
+  }
+
+  Widget _buildInputField(TextEditingController controller, Color bgColor, Color textColor, {bool isPassword = false}) {
     return TextField(
       controller: controller,
-      obscureText: isPassword,
+      obscureText: isPassword ? !showPassword : false,
       style: TextStyle(color: textColor),
       decoration: InputDecoration(
+        suffixIcon: isPassword
+            ? IconButton(
+          icon: Icon(showPassword ? Icons.visibility_off : Icons.visibility),
+          onPressed: () => setState(() => showPassword = !showPassword),
+        )
+            : null,
         filled: true,
         fillColor: bgColor,
         hintText: isPassword ? '********' : '',

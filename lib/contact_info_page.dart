@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ContactInfoPage extends StatefulWidget {
   const ContactInfoPage({super.key});
@@ -12,38 +13,83 @@ class _ContactInfoPageState extends State<ContactInfoPage> {
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController whatsappController = TextEditingController();
   bool remember = false;
+  bool _isButtonEnabled = false;
+
+  final user = FirebaseAuth.instance.currentUser;
 
   @override
   void initState() {
     super.initState();
     _loadContactInfo();
+    phoneController.addListener(_updateButtonState);
+    whatsappController.addListener(_updateButtonState);
+  }
+
+  void _updateButtonState() {
+    setState(() {
+      _isButtonEnabled =
+          phoneController.text.trim().isNotEmpty ||
+              whatsappController.text.trim().isNotEmpty ||
+              remember;
+    });
   }
 
   Future<void> _loadContactInfo() async {
-    final prefs = await SharedPreferences.getInstance();
-    phoneController.text = prefs.getString('phoneNumber') ?? '';
-    whatsappController.text = prefs.getString('whatsappNumber') ?? '';
-    remember = prefs.getBool('rememberContact') ?? false;
-    setState(() {});
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user!.uid)
+        .collection('profile')
+        .doc('contact_info')
+        .get();
+
+    if (doc.exists) {
+      final data = doc.data()!;
+      phoneController.text = data['phone'] ?? '';
+      whatsappController.text = data['whatsapp'] ?? '';
+      remember = data['remember'] ?? false;
+      _updateButtonState();
+    }
+  }
+
+  bool _isValidPhone(String phone) {
+    return phone.trim().startsWith('07');
   }
 
   Future<void> _saveContactInfo() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (remember) {
-      await prefs.setString('phoneNumber', phoneController.text);
-      await prefs.setString('whatsappNumber', whatsappController.text);
-      await prefs.setBool('rememberContact', true);
-    } else {
-      await prefs.remove('phoneNumber');
-      await prefs.remove('whatsappNumber');
-      await prefs.setBool('rememberContact', false);
+    final phone = phoneController.text.trim();
+    final whatsapp = whatsappController.text.trim();
+
+    if (phone.isNotEmpty && !_isValidPhone(phone)) {
+      _showError('Phone number must start with 07');
+      return;
     }
 
-    // ✅ إصلاح مشكلة استخدام context بعد await
+    if (whatsapp.isNotEmpty && !_isValidPhone(whatsapp)) {
+      _showError('WhatsApp number must start with 07');
+      return;
+    }
+
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user!.uid)
+        .collection('profile')
+        .doc('contact_info')
+        .set({
+      'phone': phone,
+      'whatsapp': whatsapp,
+      'remember': remember,
+    });
+
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('✅ Contact info saved!')),
+    );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('❌ $message')),
     );
   }
 
@@ -81,7 +127,10 @@ class _ContactInfoPageState extends State<ContactInfoPage> {
                   value: remember,
                   activeColor: mainColor,
                   onChanged: (val) {
-                    setState(() => remember = val ?? false);
+                    setState(() {
+                      remember = val ?? false;
+                      _updateButtonState();
+                    });
                   },
                 ),
                 Text(
@@ -93,11 +142,12 @@ class _ContactInfoPageState extends State<ContactInfoPage> {
             const SizedBox(height: 25),
             Center(
               child: ElevatedButton.icon(
-                onPressed: _saveContactInfo,
+                onPressed: _isButtonEnabled ? _saveContactInfo : null,
                 icon: const Icon(Icons.save),
                 label: const Text('Save my information'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: mainColor,
+                  disabledBackgroundColor: Colors.grey,
                   padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
                   textStyle: const TextStyle(fontSize: 16),
                 ),
