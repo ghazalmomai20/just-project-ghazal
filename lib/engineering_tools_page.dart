@@ -1,9 +1,5 @@
-// ignore: unused_import
-import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-
-import '../providers/product_provider.dart';
 import 'engineering_tools_details_page.dart';
 
 class EngineeringToolsPage extends StatefulWidget {
@@ -14,109 +10,106 @@ class EngineeringToolsPage extends StatefulWidget {
 }
 
 class _EngineeringToolsPageState extends State<EngineeringToolsPage> {
-  final TextEditingController _searchController = TextEditingController();
-  String searchQuery = '';
+  String _search = '';
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final provider = Provider.of<ProductProvider>(context);
-    final tools = provider.getProductsByCategory('Engineering Tools');
-
-    final filtered = tools.where((tool) =>
-        tool.description.toLowerCase().contains(searchQuery.toLowerCase())).toList();
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: const Color(0xFF3B3B98),
         title: const Text('Engineering Tools', style: TextStyle(color: Colors.white)),
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            Container(
-              margin: const EdgeInsets.only(bottom: 16),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: isDark ? Colors.grey[850] : Colors.grey[200],
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: TextField(
-                controller: _searchController,
-                onChanged: (val) {
-                  setState(() => searchQuery = val);
-                },
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                  hintText: 'Search tools...',
-                  prefixIcon: Icon(Icons.search),
+            TextField(
+              onChanged: (val) => setState(() => _search = val),
+              decoration: InputDecoration(
+                hintText: 'Search tools...',
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: isDark ? Colors.grey[800] : Colors.grey[200],
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(15),
+                  borderSide: BorderSide.none,
                 ),
               ),
             ),
+            const SizedBox(height: 20),
             Expanded(
-              child: filtered.isEmpty
-                  ? const Center(child: Text("No tools found."))
-                  : ListView.builder(
-                      itemCount: filtered.length,
-                      itemBuilder: (context, index) {
-                        final item = filtered[index];
-                        return Card(
-                          color: isDark ? Colors.grey[900] : Colors.white,
-                          margin: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.all(10),
-                            leading: ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: Image.file(
-                                item.images.first,
-                                width: 60,
-                                height: 60,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                            title: Text(
-                              item.description,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: isDark ? Colors.white : Colors.black,
-                              ),
-                            ),
-                            subtitle: Text(
-                              "${item.price} JD",
-                              style: TextStyle(
-                                color: isDark ? Colors.white60 : Colors.black54,
-                              ),
-                            ),
-                            trailing: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF3B3B98),
-                              ),
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => EngineeringToolsDetailsPage(
-                                      image: item.images.first.path,
-                                      title: item.description,
-                                      description: item.description,
-                                      price: item.price,
-                                      phoneNumber: item.phone,
-                                    ),
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('products')
+                    .where('category', isEqualTo: 'Engineering Tools')
+                    .orderBy('title')
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return const Center(child: Text('No engineering tools found.'));
+                  }
+
+                  final filtered = snapshot.data!.docs.where((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    final title = data['title']?.toString().toLowerCase() ?? '';
+                    return title.contains(_search.toLowerCase());
+                  }).toList();
+
+                  return ListView.builder(
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      final data = filtered[index].data() as Map<String, dynamic>;
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        elevation: 3,
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.all(12),
+                          leading: data['imageUrl'] != null
+                              ? Image.network(data['imageUrl'], width: 60, fit: BoxFit.cover)
+                              : const Icon(Icons.image_not_supported, size: 40),
+                          title: Text(data['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Text(data['description'] ?? ''),
+                          trailing: ElevatedButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => EngineeringToolsDetailsPage(
+                                    image: data['imageUrl'] ?? '',
+                                    title: data['title'] ?? '',
+                                    description: data['description'] ?? '',
+                                    price: data['price'] ?? '',
+                                    phoneNumber: data['phone'] ?? '',
+                                    receiverId: data['ownerId'] ?? '',
+                                    receiverName: data['ownerName'] ?? 'Seller',
+                                    receiverAvatar: data['ownerAvatar'] ?? '',
                                   ),
-                                );
-                              },
-                              child: const Text("View"),
+                                ),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF3B3B98),
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
                             ),
+                            child: const Text('View'),
                           ),
-                        );
-                      },
-                    ),
-            )
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
           ],
         ),
       ),

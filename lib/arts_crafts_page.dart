@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'arts_crafts_details_page.dart';
 
 class ArtsCraftsPage extends StatefulWidget {
@@ -9,31 +10,11 @@ class ArtsCraftsPage extends StatefulWidget {
 }
 
 class _ArtsCraftsPageState extends State<ArtsCraftsPage> {
-  final List<Map<String, String>> products = [
-    {
-      "title": "Acrylic Paint Kit",
-      "description": "Full kit with acrylic paints & brushes.",
-      "price": "10 JD",
-      "image": "assets/arts&crafts.png",
-      "phoneNumber": "+962788888888"
-    },
-    {
-      "title": "Sketching Set",
-      "description": "Professional pencils and paper bundle.",
-      "price": "7 JD",
-      "image": "assets/arts&crafts.png",
-      "phoneNumber": "+962799999999"
-    },
-  ];
-
   String _search = '';
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final filtered = products.where((item) {
-      return item['title']!.toLowerCase().contains(_search.toLowerCase());
-    }).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -62,41 +43,69 @@ class _ArtsCraftsPageState extends State<ArtsCraftsPage> {
             ),
             const SizedBox(height: 20),
             Expanded(
-              child: ListView.builder(
-                itemCount: filtered.length,
-                itemBuilder: (context, index) {
-                  final item = filtered[index];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                    elevation: 3,
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.all(12),
-                      leading: Image.asset(item['image']!, width: 60),
-                      title: Text(item['title']!, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text(item['description']!),
-                      trailing: ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ArtsCraftsDetailsPage(
-                                image: item['image']!,
-                                title: item['title']!,
-                                description: item['description']!,
-                                price: item['price']!,
-                                phoneNumber: item['phoneNumber']!,
-                              ),
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('arts_products')
+                    .orderBy('title')
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return const Center(child: Text('No products found.'));
+                  }
+
+                  final filtered = snapshot.data!.docs.where((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    final title = data['title']?.toString().toLowerCase() ?? '';
+                    return title.contains(_search.toLowerCase());
+                  }).toList();
+
+                  return ListView.builder(
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      final data = filtered[index].data() as Map<String, dynamic>;
+
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        elevation: 3,
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.all(12),
+                          leading: data['imageUrl'] != null
+                              ? Image.network(data['imageUrl'], width: 60, fit: BoxFit.cover)
+                              : const Icon(Icons.image_not_supported, size: 40),
+                          title: Text(data['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Text(data['description'] ?? ''),
+                          trailing: ElevatedButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ArtsCraftsDetailsPage(
+                                    image: data['imageUrl'] ?? '',
+                                    title: data['title'] ?? '',
+                                    description: data['description'] ?? '',
+                                    price: data['price'] ?? '',
+                                    phoneNumber: data['phoneNumber'] ?? '',
+                                    receiverId: data['ownerId'] ?? '',
+                                    receiverName: data['ownerName'] ?? 'User',
+                                    receiverAvatar: data['ownerAvatar'] ?? '', // ✅ أضفناها
+                                  ),
+                                ),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF3B3B98),
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
                             ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF3B3B98),
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: const Text('View'),
+                          ),
                         ),
-                        child: const Text('View'),
-                      ),
-                    ),
+                      );
+                    },
                   );
                 },
               ),

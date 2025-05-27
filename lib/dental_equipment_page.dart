@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dental_equipment_details_page.dart';
 
 class DentalEquipmentPage extends StatefulWidget {
@@ -9,36 +10,7 @@ class DentalEquipmentPage extends StatefulWidget {
 }
 
 class _DentalEquipmentPageState extends State<DentalEquipmentPage> {
-  final TextEditingController _searchController = TextEditingController();
-  List<Map<String, String>> allItems = [];
-  List<Map<String, String>> filteredItems = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadItems();
-  }
-
-  void _loadItems() {
-    allItems = [
-      {
-        'image': 'assets/dental_equipment.png',
-        'title': 'Dental Kit Pro',
-        'description': 'Professional dental kit for hygiene.',
-        'price': '15',
-        'phone': '+962788888888',
-      },
-    ];
-    filteredItems = List.from(allItems);
-  }
-
-  void _filter(String query) {
-    setState(() {
-      filteredItems = allItems.where((item) {
-        return item['title']!.toLowerCase().contains(query.toLowerCase());
-      }).toList();
-    });
-  }
+  String _search = '';
 
   @override
   Widget build(BuildContext context) {
@@ -48,8 +20,8 @@ class _DentalEquipmentPageState extends State<DentalEquipmentPage> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF3B3B98),
         title: const Text('Dental Equipment', style: TextStyle(color: Colors.white)),
-        centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
+        centerTitle: true,
       ),
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Padding(
@@ -57,73 +29,86 @@ class _DentalEquipmentPageState extends State<DentalEquipmentPage> {
         child: Column(
           children: [
             TextField(
-              controller: _searchController,
-              onChanged: _filter,
+              onChanged: (val) => setState(() => _search = val),
               decoration: InputDecoration(
-                hintText: 'Search dental tools...',
+                hintText: 'Search dental equipment...',
                 prefixIcon: const Icon(Icons.search),
                 filled: true,
-                fillColor: isDark ? Colors.grey[850] : Colors.grey[200],
+                fillColor: isDark ? Colors.grey[800] : Colors.grey[200],
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(15),
                   borderSide: BorderSide.none,
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             Expanded(
-              child: filteredItems.isEmpty
-                  ? const Center(child: Text('No dental equipment found.'))
-                  : ListView.builder(
-                      itemCount: filteredItems.length,
-                      itemBuilder: (context, index) {
-                        final item = filteredItems[index];
-                        return Card(
-                          margin: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          child: ListTile(
-                            leading: ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: Image.asset(
-                                item['image']!,
-                                width: 50,
-                                height: 50,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                            title: Text(
-                              item['title']!,
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            subtitle: Text(
-                              item['description']!,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            trailing: ElevatedButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => DentalEquipmentDetailsPage(
-                                      image: item['image']!,
-                                      title: item['title']!,
-                                      description: item['description']!,
-                                      price: item['price']!,
-                                      phoneNumber: item['phone']!,
-                                    ),
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('products')
+                    .where('category', isEqualTo: 'Dental Equipment')
+                    .orderBy('title')
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return const Center(child: Text('No dental equipment found.'));
+                  }
+
+                  final filtered = snapshot.data!.docs.where((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    final title = data['title']?.toString().toLowerCase() ?? '';
+                    return title.contains(_search.toLowerCase());
+                  }).toList();
+
+                  return ListView.builder(
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      final data = filtered[index].data() as Map<String, dynamic>;
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        elevation: 3,
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.all(12),
+                          leading: data['imageUrl'] != null
+                              ? Image.network(data['imageUrl'], width: 60, fit: BoxFit.cover)
+                              : const Icon(Icons.medical_services, size: 40),
+                          title: Text(data['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Text(data['description'] ?? ''),
+                          trailing: ElevatedButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => DentalEquipmentDetailsPage(
+                                    image: data['imageUrl'] ?? '',
+                                    title: data['title'] ?? '',
+                                    description: data['description'] ?? '',
+                                    price: data['price'] ?? '',
+                                    phoneNumber: data['phone'] ?? '',
+                                    receiverId: data['ownerId'] ?? '',
+                                    receiverName: data['ownerName'] ?? 'Seller',
+                                    receiverAvatar: data['ownerAvatar'] ?? '',
                                   ),
-                                );
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF3B3B98),
-                              ),
-                              child: const Text("View"),
+                                ),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF3B3B98),
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
                             ),
+                            child: const Text('View'),
                           ),
-                        );
-                      },
-                    ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ],
         ),

@@ -1,12 +1,24 @@
+import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 class ChatPage extends StatefulWidget {
+  final String receiverId;
+  final String receiverName;
+  final String receiverAvatar;
   final String userName;
   final String userAvatar;
 
   const ChatPage({
     super.key,
+    required this.receiverId,
+    required this.receiverName,
+    required this.receiverAvatar,
     required this.userName,
     required this.userAvatar,
   });
@@ -15,206 +27,337 @@ class ChatPage extends StatefulWidget {
   State<ChatPage> createState() => _ChatPageState();
 }
 
-class Message {
-  final String text;
-  final DateTime time;
-
-  Message({required this.text, required this.time});
-}
-
-class _ChatPageState extends State<ChatPage> {
+class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   final TextEditingController _messageController = TextEditingController();
-  final TextEditingController _searchController = TextEditingController();
-  final List<Message> _messages = [];
-  String _searchQuery = '';
+  final ScrollController _scrollController = ScrollController();
+  final FocusNode _textFieldFocus = FocusNode();
+  final userId = FirebaseAuth.instance.currentUser!.uid;
+  late final String chatRoomId;
 
-  void _sendMessage() {
-    final text = _messageController.text.trim();
-    if (text.isNotEmpty) {
-      setState(() {
-        _messages.insert(0, Message(text: text, time: DateTime.now()));
-        _messageController.clear();
-      });
-    }
-  }
+  bool _isOnline = false;
+  DateTime? _lastSeen;
+  bool _isTyping = false;
+  bool _showEmojiPicker = false;
 
-  void _deleteMessage(int index) {
-    setState(() {
-      _messages.removeAt(index);
-    });
-  }
-
-  String _formatDateHeader(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date).inDays;
-
-    if (difference == 0) return "Today";
-    if (difference == 1) return "Yesterday";
-    return DateFormat('d MMM yyyy').format(date);
-  }
-
-  Map<String, List<Message>> _groupMessagesByDate() {
-    final Map<String, List<Message>> grouped = {};
-    for (var msg in _messages) {
-      final dateKey = _formatDateHeader(msg.time);
-      grouped.putIfAbsent(dateKey, () => []).add(msg);
-    }
-    return grouped;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    chatRoomId = getChatRoomId(userId, widget.receiverId);
+    _setupChatRoom();
+    _markMessagesAsRead();
+    _updateOnlineStatus(true);
+    _listenToTyping();
+    _listenToOnlineStatus();
   }
 
   @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final groupedMessages = _groupMessagesByDate();
+  void dispose() {
+    _updateOnlineStatus(false);
+    WidgetsBinding.instance.removeObserver(this);
+    _messageController.dispose();
+    _scrollController.dispose();
+    _textFieldFocus.dispose();
+    super.dispose();
+  }
 
-    return Scaffold(
-      backgroundColor: isDark ? Colors.black : Colors.grey[100],
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF3B3B98),
-        title: Row(
-          children: [
-            Hero(
-              tag: 'avatar-${widget.userName}',
-              child: CircleAvatar(
-                backgroundImage: NetworkImage(widget.userAvatar),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                widget.userName,
-                style: const TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
-        ),
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      _updateOnlineStatus(true);
+    } else if (state == AppLifecycleState.paused) {
+      _updateOnlineStatus(false);
+    }
+  }
+
+  String getChatRoomId(String uid1, String uid2) {
+    return uid1.compareTo(uid2) < 0 ? '${uid1}_$uid2' : '${uid2}_$uid1';
+  }
+
+  Future<void> _setupChatRoom() async {
+    final chatRoomRef = FirebaseFirestore.instance.collection('chat_rooms').doc(chatRoomId);
+
+    await chatRoomRef.set({
+      'users': [userId, widget.receiverId],
+      'userNames': {
+        userId: widget.userName,
+        widget.receiverId: widget.receiverName,
+      },
+      'userAvatars': {
+        userId: widget.userAvatar,
+        widget.receiverId: widget.receiverAvatar,
+      },
+      'createdAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> _markMessagesAsRead() async {
+    final chatRoomRef = FirebaseFirestore.instance.collection('chat_rooms').doc(chatRoomId);
+
+    await chatRoomRef.update({
+      'unreadCount.$userId': 0,
+    });
+  }
+
+  void _updateOnlineStatus(bool isOnline) {
+    FirebaseFirestore.instance.collection('user_status').doc(userId).set({
+      'isOnline': isOnline,
+      'lastSeen': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  void _listenToOnlineStatus() {
+    FirebaseFirestore.instance
+        .collection('user_status')
+        .doc(widget.receiverId)
+        .snapshots()
+        .listen((doc) {
+      if (doc.exists && mounted) {
+        final data = doc.data()!;
+        setState(() {
+          _isOnline = data['isOnline'] ?? false;
+          _lastSeen = (data['lastSeen'] as Timestamp?)?.toDate();
+        });
+      }
+    });
+  }
+
+  void _listenToTyping() {
+    FirebaseFirestore.instance
+        .collection('chat_rooms')
+        .doc(chatRoomId)
+        .snapshots()
+        .listen((doc) {
+      if (doc.exists && mounted) {
+        final data = doc.data()!;
+        final typingData = data['typing'] as Map<String, dynamic>? ?? {};
+        final otherUserTyping = typingData[widget.receiverId] ?? false;
+
+        if (_isTyping != otherUserTyping) {
+          setState(() {
+            _isTyping = otherUserTyping;
+          });
+        }
+      }
+    });
+  }
+
+  void _updateTypingStatus(bool isTyping) {
+    FirebaseFirestore.instance.collection('chat_rooms').doc(chatRoomId).update({
+      'typing.$userId': isTyping,
+    });
+  }
+
+  Future<void> _sendMessage({String? text, String? imageUrl, String type = 'text'}) async {
+    final messageText = text ?? _messageController.text.trim();
+    if (messageText.isEmpty && imageUrl == null) return;
+
+    _messageController.clear();
+    _updateTypingStatus(false);
+
+    final messageData = {
+      'senderId': userId,
+      'senderName': widget.userName,
+      'senderAvatar': widget.userAvatar,
+      'text': messageText,
+      'imageUrl': imageUrl,
+      'type': type,
+      'timestamp': FieldValue.serverTimestamp(),
+      'chatId': chatRoomId,
+      'isRead': false,
+    };
+
+    // Add message to subcollection
+    await FirebaseFirestore.instance
+        .collection('chat_rooms')
+        .doc(chatRoomId)
+        .collection('messages')
+        .add(messageData);
+
+    // Update chat room info
+    await FirebaseFirestore.instance.collection('chat_rooms').doc(chatRoomId).update({
+      'lastMessage': type == 'text' ? messageText : '📷 Photo',
+      'lastMessageType': type,
+      'lastMessageTime': FieldValue.serverTimestamp(),
+      'unreadCount.${widget.receiverId}': FieldValue.increment(1),
+    });
+
+    _scrollToBottom();
+  }
+
+  Future<void> _sendImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+    if (pickedFile == null) return;
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(),
       ),
-      body: Column(
+    );
+
+    try {
+      // Upload image to Firebase Storage
+      final file = File(pickedFile.path);
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('chat_images')
+          .child(chatRoomId)
+          .child('${DateTime.now().millisecondsSinceEpoch}.jpg');
+
+      final uploadTask = await storageRef.putFile(file);
+      final imageUrl = await uploadTask.ref.getDownloadURL();
+
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+
+      // Send message with image
+      await _sendMessage(imageUrl: imageUrl, type: 'image');
+
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+
+      // Show error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to send image: $e')),
+      );
+    }
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  String _getOnlineStatus() {
+    if (_isOnline) {
+      return 'Online';
+    } else if (_lastSeen != null) {
+      final now = DateTime.now();
+      final difference = now.difference(_lastSeen!);
+
+      if (difference.inMinutes < 1) {
+        return 'Just now';
+      } else if (difference.inHours < 1) {
+        return '${difference.inMinutes}m ago';
+      } else if (difference.inDays < 1) {
+        return '${difference.inHours}h ago';
+      } else {
+        return DateFormat('MMM d').format(_lastSeen!);
+      }
+    }
+    return 'Offline';
+  }
+
+  Widget _buildMessage(Map<String, dynamic> msg, bool isMe) {
+    final time = (msg['timestamp'] as Timestamp?)?.toDate();
+    final formattedTime = time != null ? DateFormat.jm().format(time) : '';
+    final messageType = msg['type'] ?? 'text';
+
+    return Container(
+      margin: EdgeInsets.only(
+        left: isMe ? 50 : 10,
+        right: isMe ? 10 : 50,
+        top: 2,
+        bottom: 2,
+      ),
+      child: Column(
+        crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: isMe ? const Color(0xFF3B3B98) : Colors.grey[300],
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(20),
+                topRight: const Radius.circular(20),
+                bottomLeft: Radius.circular(isMe ? 20 : 5),
+                bottomRight: Radius.circular(isMe ? 5 : 20),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (messageType == 'image' && msg['imageUrl'] != null)
+                  Container(
+                    constraints: const BoxConstraints(maxWidth: 200, maxHeight: 200),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        msg['imageUrl'],
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            height: 100,
+                            width: 100,
+                            color: Colors.grey[300],
+                            child: const Center(child: CircularProgressIndicator()),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            height: 100,
+                            width: 100,
+                            color: Colors.grey[300],
+                            child: const Icon(Icons.error),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                if (msg['text'] != null && msg['text'].toString().isNotEmpty)
+                  Padding(
+                    padding: EdgeInsets.only(top: messageType == 'image' ? 8 : 0),
+                    child: SelectableText(
+                      msg['text'] ?? '',
+                      style: TextStyle(
+                        color: isMe ? Colors.white : Colors.black87,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
           Padding(
-            padding: const EdgeInsets.all(10),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (value) => setState(() => _searchQuery = value),
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.search),
-                hintText: 'Search messages...',
-                filled: true,
-                fillColor: isDark ? Colors.grey[800] : Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30),
-                  borderSide: BorderSide.none,
+            padding: EdgeInsets.only(
+              left: isMe ? 0 : 8,
+              right: isMe ? 8 : 0,
+              top: 4,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  formattedTime,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
                 ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: ListView(
-              reverse: true,
-              children: groupedMessages.entries.map((entry) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      child: Text(
-                        entry.key,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white70 : Colors.grey[700],
-                        ),
-                      ),
-                    ),
-                    ...entry.value.asMap().entries.map((e) {
-                      final msg = e.value;
-                      final index = _messages.indexOf(msg);
-                      final time = DateFormat.jm().format(msg.time);
-
-                      if (_searchQuery.isNotEmpty &&
-                          !msg.text.toLowerCase().contains(_searchQuery.toLowerCase())) {
-                        return const SizedBox.shrink();
-                      }
-
-                      return GestureDetector(
-                        onLongPress: () => _showDeleteDialog(index),
-                        child: Align(
-                          alignment: index % 2 == 0
-                              ? Alignment.centerRight
-                              : Alignment.centerLeft,
-                          child: Container(
-                            margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            decoration: BoxDecoration(
-                              color: index % 2 == 0
-                                  ? const Color(0xFF3B3B98)
-                                  : Colors.grey[300],
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  msg.text,
-                                  style: TextStyle(
-                                    color: index % 2 == 0 ? Colors.white : Colors.black,
-                                  ),
-                                ),
-                                const SizedBox(height: 5),
-                                Text(
-                                  time,
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: index % 2 == 0 ? Colors.white70 : Colors.black54,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
-                  ],
-                );
-              }).toList(),
-            ),
-          ),
-          SafeArea(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: isDark ? Colors.grey[900] : Colors.white,
-                boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 4,
+                if (isMe) ...[
+                  const SizedBox(width: 4),
+                  Icon(
+                    msg['isRead'] == true ? Icons.done_all : Icons.done,
+                    size: 16,
+                    color: msg['isRead'] == true ? Colors.blue : Colors.grey,
                   ),
                 ],
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _messageController,
-                      decoration: InputDecoration(
-                        hintText: 'Type a message...',
-                        filled: true,
-                        fillColor: isDark ? Colors.grey[800] : Colors.grey[100],
-                        contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(25),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  IconButton(
-                    icon: const Icon(Icons.send, color: Color(0xFF3B3B98)),
-                    onPressed: _sendMessage,
-                  ),
-                ],
-              ),
+              ],
             ),
           ),
         ],
@@ -222,23 +365,200 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  void _showDeleteDialog(int index) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Delete message?'),
-        content: const Text('Are you sure you want to delete this message?'),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF3B3B98),
+        elevation: 1,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Row(
+          children: [
+            Stack(
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: Colors.grey[300],
+                  backgroundImage: widget.receiverAvatar.isNotEmpty
+                      ? NetworkImage(widget.receiverAvatar)
+                      : null,
+                  child: widget.receiverAvatar.isEmpty
+                      ? Text(
+                    widget.receiverName.isNotEmpty
+                        ? widget.receiverName[0].toUpperCase()
+                        : '?',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  )
+                      : null,
+                ),
+                if (_isOnline)
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.receiverName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    _isTyping ? 'Typing...' : _getOnlineStatus(),
+                    style: TextStyle(
+                      color: _isTyping ? Colors.greenAccent : Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.more_vert, color: Colors.white),
             onPressed: () {
-              _deleteMessage(index);
-              Navigator.pop(context);
+              // Show options menu
             },
-            child: const Text('Delete'),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('chat_rooms')
+                  .doc(chatRoomId)
+                  .collection('messages')
+                  .orderBy('timestamp', descending: true)
+                  .limit(50)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey),
+                        SizedBox(height: 16),
+                        Text(
+                          'No messages yet',
+                          style: TextStyle(color: Colors.grey, fontSize: 16),
+                        ),
+                        Text(
+                          'Send a message to start the conversation',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                final messages = snapshot.data!.docs;
+
+                return ListView.builder(
+                  controller: _scrollController,
+                  reverse: true,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    final msg = messages[index].data() as Map<String, dynamic>;
+                    final isMe = msg['senderId'] == userId;
+
+                    return _buildMessage(msg, isMe);
+                  },
+                );
+              },
+            ),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(top: BorderSide(color: Colors.grey[300]!)),
+            ),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.photo_camera, color: Color(0xFF3B3B98)),
+                      onPressed: _sendImage,
+                    ),
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                        child: TextField(
+                          controller: _messageController,
+                          focusNode: _textFieldFocus,
+                          maxLines: null,
+                          textInputAction: TextInputAction.newline,
+                          decoration: const InputDecoration(
+                            hintText: 'Type a message...',
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 10,
+                            ),
+                            border: InputBorder.none,
+                          ),
+                          onChanged: (text) {
+                            final isCurrentlyTyping = text.isNotEmpty;
+                            if (isCurrentlyTyping != _isTyping) {
+                              _updateTypingStatus(isCurrentlyTyping);
+                            }
+                          },
+                          onSubmitted: (_) => _sendMessage(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF3B3B98),
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.send, color: Colors.white),
+                        onPressed: () => _sendMessage(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'chat_page.dart';
 
 class ElectronicsDetailsPage extends StatelessWidget {
@@ -7,6 +8,9 @@ class ElectronicsDetailsPage extends StatelessWidget {
   final String description;
   final String price;
   final String phoneNumber;
+  final String receiverId;
+  final String receiverName;
+  final String receiverAvatar;
 
   const ElectronicsDetailsPage({
     super.key,
@@ -15,64 +19,53 @@ class ElectronicsDetailsPage extends StatelessWidget {
     required this.description,
     required this.price,
     required this.phoneNumber,
+    required this.receiverId,
+    required this.receiverName,
+    required this.receiverAvatar,
   });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF3B3B98),
-        title: Text(
-          title,
-          style: const TextStyle(color: Colors.white),
-        ),
-        iconTheme: const IconThemeData(color: Colors.white),
+        title: Text(title, style: const TextStyle(color: Colors.white)),
         centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(15),
-              child: Image.asset(
+              child: Image.network(
                 image,
                 height: 200,
                 width: double.infinity,
                 fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) =>
+                const Icon(Icons.image_not_supported, size: 50),
               ),
             ),
             const SizedBox(height: 20),
-            Text(
-              title,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
+            Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             Text(
               description,
-              style: TextStyle(
-                fontSize: 16,
-                color: isDark ? Colors.white70 : Colors.grey[800],
-              ),
+              style: TextStyle(fontSize: 16, color: isDark ? Colors.white70 : Colors.grey[800]),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
             Text(
               '$price JD',
-              style: const TextStyle(
-                fontSize: 20,
-                color: Colors.green,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 20, color: Colors.green, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 30),
-            const Text(
-              "Contact Seller",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-            ),
+            const Text("Contact Seller", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
             const SizedBox(height: 15),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -85,10 +78,7 @@ class ElectronicsDetailsPage extends StatelessWidget {
                         title: const Text('Seller Contact'),
                         content: Text('📞 $phoneNumber'),
                         actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text('Close'),
-                          ),
+                          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
                         ],
                       ),
                     );
@@ -105,9 +95,12 @@ class ElectronicsDetailsPage extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const ChatPage(
-                          userName: 'Admin',
-                          userAvatar: 'https://randomuser.me/api/portraits/men/10.jpg', // ✅ صورة رمزية إلكترونيات
+                        builder: (_) => ChatPage(
+                          receiverId: receiverId,
+                          receiverName: receiverName,
+                          receiverAvatar: receiverAvatar,
+                          userName: user?.displayName ?? 'Guest',
+                          userAvatar: user?.photoURL ?? '',
                         ),
                       ),
                     );
@@ -120,7 +113,7 @@ class ElectronicsDetailsPage extends StatelessWidget {
                   ),
                 ),
               ],
-            )
+            ),
           ],
         ),
       ),

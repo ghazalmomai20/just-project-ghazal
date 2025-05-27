@@ -1,7 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'chat_page.dart';
-import 'dart:math' as math;
+import 'package:intl/intl.dart';
 
 class ChatListPage extends StatefulWidget {
   const ChatListPage({super.key});
@@ -10,409 +11,289 @@ class ChatListPage extends StatefulWidget {
   State<ChatListPage> createState() => _ChatListPageState();
 }
 
-class _ChatListPageState extends State<ChatListPage> with SingleTickerProviderStateMixin {
-  final List<ChatUser> _chatUsers = [
-    ChatUser(
-      name: 'علي محمد',
-      avatar: 'https://randomuser.me/api/portraits/men/1.jpg',
-      lastMessage: 'مرحباً، كيف حالك اليوم؟',
-      time: '09:45',
-      unreadCount: 3,
-    ),
-    ChatUser(
-      name: 'سارة أحمد',
-      avatar: 'https://randomuser.me/api/portraits/women/1.jpg',
-      lastMessage: 'هل المنتج ما زال متوفراً؟',
-      time: 'الأمس',
-      unreadCount: 0,
-    ),
-    ChatUser(
-      name: 'محمد خالد',
-      avatar: 'https://randomuser.me/api/portraits/men/2.jpg',
-      lastMessage: 'شكراً لك، سأتواصل معك لاحقاً',
-      time: 'الأمس',
-      unreadCount: 0,
-    ),
-    ChatUser(
-      name: 'لينا فادي',
-      avatar: 'https://randomuser.me/api/portraits/women/2.jpg',
-      lastMessage: 'تم الاتفاق، سأرسل لك العنوان',
-      time: 'الإثنين',
-      unreadCount: 1,
-    ),
-    ChatUser(
-      name: 'خالد عمر',
-      avatar: 'https://randomuser.me/api/portraits/men/3.jpg',
-      lastMessage: 'هل يمكن تخفيض السعر قليلاً؟',
-      time: 'الأحد',
-      unreadCount: 0,
-    ),
-  ];
-
+class _ChatListPageState extends State<ChatListPage> {
   String _searchQuery = '';
-  late AnimationController _animationController;
-  final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
-  bool _isSearching = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
-  }
+  String _formatTime(Timestamp? timestamp) {
+    if (timestamp == null) return '';
+    final date = timestamp.toDate();
+    final now = DateTime.now();
+    final difference = now.difference(date);
 
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
-
-  void _toggleSearch() {
-    setState(() {
-      _isSearching = !_isSearching;
-      if (_isSearching) {
-        _animationController.forward();
-      } else {
-        _animationController.reverse();
-        _searchQuery = '';
-      }
-    });
-  }
-
-  void _deleteChat(ChatUser user) {
-    final index = _chatUsers.indexOf(user);
-    if (index != -1) {
-      setState(() {
-        final removedItem = _chatUsers.removeAt(index);
-        _listKey.currentState?.removeItem(
-          index,
-              (context, animation) => _buildChatItem(removedItem, animation),
-          duration: const Duration(milliseconds: 300),
-        );
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('تم حذف المحادثة مع ${user.name}'),
-          action: SnackBarAction(
-            label: 'تراجع',
-            onPressed: () {
-              setState(() {
-                _chatUsers.insert(index, user);
-                _listKey.currentState?.insertItem(index, duration: const Duration(milliseconds: 300));
-              });
-            },
-          ),
-        ),
-      );
+    if (difference.inDays == 0) {
+      return DateFormat('hh:mm a').format(date);
+    } else if (difference.inDays == 1) {
+      return 'Yesterday';
+    } else if (difference.inDays < 7) {
+      return DateFormat('EEEE').format(date); // Day name
+    } else {
+      return DateFormat('MMM d').format(date);
     }
+  }
+
+  Map<String, String> _getOtherUserData(Map<String, dynamic> data, String currentUserId) {
+    final users = data['participants'] as List;
+    final userNames = data['userNames'] as Map<String, dynamic>? ?? {};
+    final userAvatars = data['userAvatars'] as Map<String, dynamic>? ?? {};
+
+    final otherUserId = users.firstWhere((id) => id != currentUserId, orElse: () => '');
+
+    return {
+      'id': otherUserId,
+      'name': userNames[otherUserId] ?? 'Unknown User',
+      'avatar': userAvatars[otherUserId] ?? '',
+    };
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final filteredUsers = _chatUsers
-        .where((user) => user.name.toLowerCase().contains(_searchQuery.toLowerCase()))
-        .toList();
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final userId = currentUser?.uid ?? '';
+    final userName = currentUser?.displayName ?? 'Me';
+    final userAvatar = currentUser?.photoURL ?? '';
 
     return Scaffold(
       appBar: AppBar(
-        systemOverlayStyle: const SystemUiOverlayStyle(
-          statusBarColor: Color(0xFF3B3B98),
-          statusBarIconBrightness: Brightness.light,
-        ),
         backgroundColor: const Color(0xFF3B3B98),
         elevation: 0,
-        title: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          transitionBuilder: (Widget child, Animation<double> animation) {
-            return SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0.0, -0.5),
-                end: Offset.zero,
-              ).animate(animation),
-              child: FadeTransition(
-                opacity: animation,
-                child: child,
-              ),
-            );
-          },
-          child: _isSearching
-              ? TextField(
-            key: const ValueKey('searchField'),
-            onChanged: (val) => setState(() => _searchQuery = val),
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
-              hintText: 'البحث...',
-              hintStyle: const TextStyle(color: Colors.white70),
-              border: InputBorder.none,
-              prefixIcon: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: _toggleSearch,
-              ),
-            ),
-            autofocus: true,
-          )
-              : const Text(
-            'المحادثات',
-            key: ValueKey('title'),
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
+        title: const Text('Chats',
+            style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 20
+            )
         ),
         centerTitle: true,
         actions: [
-          if (!_isSearching)
-            IconButton(
-              icon: const Icon(Icons.search, color: Colors.white),
-              onPressed: _toggleSearch,
-            ),
+          IconButton(
+            icon: const Icon(Icons.search, color: Colors.white),
+            onPressed: () {
+              showSearch(
+                context: context,
+                delegate: ChatSearchDelegate(
+                    userId: userId,
+                    userName: userName,
+                    userAvatar: userAvatar
+                ),
+              );
+            },
+          )
         ],
       ),
-      backgroundColor: isDark ? Colors.black : Colors.grey[100],
-      body: Column(
-        children: [
-          _buildOnlineUsersBar(),
-          Expanded(
-            child: _isSearching
-                ? ListView.builder(
-              itemCount: filteredUsers.length,
-              itemBuilder: (context, index) {
-                return _buildChatItem(filteredUsers[index], const AlwaysStoppedAnimation(1));
-              },
-            )
-                : AnimatedList(
-              key: _listKey,
-              initialItemCount: _chatUsers.length,
-              itemBuilder: (context, index, animation) {
-                return _buildChatItem(_chatUsers[index], animation);
-              },
-            ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFF3B3B98),
-        child: const Icon(Icons.add_comment, color: Colors.white),
-        onPressed: () {
-          // Open new chat creation screen
-        },
-      ),
-    );
-  }
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('chat_rooms')
+            .where('participants', arrayContains: userId)
+            .orderBy('lastMessageTime', descending: true)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF3B3B98)),
+                )
+            );
+          }
 
-  Widget _buildOnlineUsersBar() {
-    return Container(
-      height: 100,
-      color: const Color(0xFF3B3B98).withOpacity(0.8),
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        scrollDirection: Axis.horizontal,
-        itemCount: _chatUsers.length,
-        itemBuilder: (context, index) {
-          final user = _chatUsers[index];
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Column(
-              children: [
-                Stack(
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  Text('Error: ${snapshot.error}'),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => setState(() {}),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text(
+                    'No conversations yet',
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Start chatting with sellers!',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          final docs = snapshot.data!.docs;
+
+          return ListView.separated(
+            itemCount: docs.length,
+            separatorBuilder: (context, index) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final data = docs[index].data() as Map<String, dynamic>;
+              final otherUser = _getOtherUserData(data, userId);
+              final lastMsg = data['lastMessage'] ?? '';
+              final lastMsgType = data['lastMessageType'] ?? 'text';
+              final time = _formatTime(data['lastMessageTime']);
+              final unreadCount = (data['unreadCount'] as Map<String, dynamic>?)?[userId] ?? 0;
+              final isOnline = data['isOnline'] ?? false;
+
+              return ListTile(
+                leading: CircleAvatar(
+                  backgroundImage: otherUser['avatar']!.isNotEmpty ? NetworkImage(otherUser['avatar']!) : null,
+                  child: otherUser['avatar']!.isEmpty ? Text(otherUser['name']![0].toUpperCase()) : null,
+                ),
+                title: Text(otherUser['name']!),
+                subtitle: Text(_getDisplayMessage(lastMsg, lastMsgType)),
+                trailing: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Hero(
-                      tag: 'avatar-${user.name}',
-                      child: Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                          image: DecorationImage(
-                            image: NetworkImage(user.avatar),
-                            fit: BoxFit.cover,
-                          ),
-                        ),
+                    Text(time, style: const TextStyle(fontSize: 12)),
+                    if (unreadCount > 0)
+                      CircleAvatar(
+                        radius: 10,
+                        backgroundColor: Colors.red,
+                        child: Text('$unreadCount', style: const TextStyle(fontSize: 12, color: Colors.white)),
                       ),
-                    ),
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: Container(
-                        width: 16,
-                        height: 16,
-                        decoration: BoxDecoration(
-                          color: Colors.green,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  user.name.split(' ')[0],
-                  style: const TextStyle(color: Colors.white, fontSize: 12),
-                ),
-              ],
-            ),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ChatPage(
+                        receiverId: otherUser['id']!,
+                        receiverName: otherUser['name']!,
+                        receiverAvatar: otherUser['avatar']!,
+                        userName: userName,
+                        userAvatar: userAvatar,
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
           );
         },
       ),
     );
   }
 
-  Widget _buildChatItem(ChatUser user, Animation<double> animation) {
-    return SlideTransition(
-      position: Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero).animate(animation),
-      child: FadeTransition(
-        opacity: animation,
-        child: Dismissible(
-          key: Key(user.name),
-          background: Container(
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: 20),
-            color: Colors.red,
-            child: const Icon(Icons.delete, color: Colors.white),
-          ),
-          direction: DismissDirection.endToStart,
-          onDismissed: (_) => _deleteChat(user),
-          child: InkWell(
-            onTap: () {
-              Navigator.push(
-                context,
-                PageRouteBuilder(
-                  pageBuilder: (context, animation, secondaryAnimation) => ChatPage(
-                    userName: user.name,
-                    userAvatar: user.avatar,
-                  ),
-                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                    final tween = Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
-                        .chain(CurveTween(curve: Curves.ease));
-                    return SlideTransition(position: animation.drive(tween), child: child);
-                  },
-                ),
-              );
-            },
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.grey[900]
-                    : Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    Hero(
-                      tag: 'avatar-${user.name}',
-                      child: CircleAvatar(
-                        radius: 30,
-                        backgroundImage: NetworkImage(user.avatar),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                user.name,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight:
-                                  user.unreadCount > 0 ? FontWeight.bold : FontWeight.normal,
-                                  color: Theme.of(context).brightness == Brightness.dark
-                                      ? Colors.white
-                                      : Colors.black,
-                                ),
-                              ),
-                              Text(
-                                user.time,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: user.unreadCount > 0
-                                      ? const Color(0xFF3B3B98)
-                                      : Colors.grey,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  user.lastMessage,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: user.unreadCount > 0
-                                        ? (Theme.of(context).brightness == Brightness.dark
-                                        ? Colors.white
-                                        : Colors.black)
-                                        : Colors.grey,
-                                  ),
-                                ),
-                              ),
-                              if (user.unreadCount > 0)
-                                Container(
-                                  margin: const EdgeInsets.only(left: 8),
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: const BoxDecoration(
-                                    color: Color(0xFF3B3B98),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Text(
-                                    user.unreadCount.toString(),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
+  String _getDisplayMessage(String message, String type) {
+    switch (type) {
+      case 'image':
+        return '📷 Photo';
+      case 'file':
+        return '📎 File';
+      case 'audio':
+        return '🎵 Audio';
+      case 'video':
+        return '🎬 Video';
+      default:
+        return message;
+    }
   }
 }
 
-class ChatUser {
-  final String name;
-  final String avatar;
-  final String lastMessage;
-  final String time;
-  final int unreadCount;
+class ChatSearchDelegate extends SearchDelegate<String> {
+  final String userId;
+  final String userName;
+  final String userAvatar;
 
-  ChatUser({
-    required this.name,
-    required this.avatar,
-    required this.lastMessage,
-    required this.time,
-    required this.unreadCount,
-  });
+  ChatSearchDelegate({required this.userId, required this.userName, required this.userAvatar});
+
+  @override
+  List<Widget> buildActions(BuildContext context) {
+    return [
+      IconButton(
+        icon: const Icon(Icons.clear),
+        onPressed: () => query = '',
+      ),
+    ];
+  }
+
+  @override
+  Widget buildLeading(BuildContext context) {
+    return IconButton(
+      icon: const Icon(Icons.arrow_back),
+      onPressed: () => close(context, ''),
+    );
+  }
+
+  @override
+  Widget buildResults(BuildContext context) => _buildSearchResults();
+
+  @override
+  Widget buildSuggestions(BuildContext context) => _buildSearchResults();
+
+  Widget _buildSearchResults() {
+    if (query.isEmpty) {
+      return const Center(child: Text('Type to search conversations...'));
+    }
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('chat_rooms')
+          .where('participants', arrayContains: userId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+
+        final filteredDocs = snapshot.data!.docs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          final userNames = data['userNames'] as Map<String, dynamic>? ?? {};
+          final otherUserId = (data['participants'] as List).firstWhere((id) => id != userId, orElse: () => '');
+          final otherName = userNames[otherUserId] ?? '';
+          return otherName.toLowerCase().contains(query.toLowerCase());
+        }).toList();
+
+        if (filteredDocs.isEmpty) return const Center(child: Text('No conversations found'));
+
+        return ListView.builder(
+          itemCount: filteredDocs.length,
+          itemBuilder: (context, index) {
+            final data = filteredDocs[index].data() as Map<String, dynamic>;
+            final userNames = data['userNames'] as Map<String, dynamic>? ?? {};
+            final userAvatars = data['userAvatars'] as Map<String, dynamic>? ?? {};
+            final otherUserId = (data['participants'] as List).firstWhere((id) => id != userId, orElse: () => '');
+            final otherName = userNames[otherUserId] ?? 'Unknown User';
+            final otherAvatar = userAvatars[otherUserId] ?? '';
+
+            return ListTile(
+              leading: CircleAvatar(
+                backgroundImage: otherAvatar.isNotEmpty ? NetworkImage(otherAvatar) : null,
+                child: otherAvatar.isEmpty ? Text(otherName.isNotEmpty ? otherName[0] : '?') : null,
+              ),
+              title: Text(otherName),
+              onTap: () {
+                close(context, '');
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ChatPage(
+                      receiverId: otherUserId,
+                      receiverName: otherName,
+                      receiverAvatar: otherAvatar,
+                      userName: userName,
+                      userAvatar: userAvatar,
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
 }

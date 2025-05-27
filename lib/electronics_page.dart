@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'electronics_details_page.dart';
 
 class ElectronicsPage extends StatefulWidget {
@@ -9,43 +10,7 @@ class ElectronicsPage extends StatefulWidget {
 }
 
 class _ElectronicsPageState extends State<ElectronicsPage> {
-  final TextEditingController _searchController = TextEditingController();
-  List<Map<String, String>> allProducts = [];
-  List<Map<String, String>> filteredProducts = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadElectronics();
-  }
-
-  void _loadElectronics() {
-    allProducts = [
-      {
-        'image': 'assets/laptop.png',
-        'title': 'Lenovo Laptop',
-        'description': 'Core i5, 8GB RAM, 256GB SSD',
-        'price': '320',
-        'phone': '+962799998888',
-      },
-      {
-        'image': 'assets/laptop.png',
-        'title': 'HP Notebook',
-        'description': 'Core i7, 16GB RAM, 512GB SSD',
-        'price': '480',
-        'phone': '+962788887777',
-      },
-    ];
-    filteredProducts = List.from(allProducts);
-  }
-
-  void _filter(String query) {
-    setState(() {
-      filteredProducts = allProducts
-          .where((item) => item['title']!.toLowerCase().contains(query.toLowerCase()))
-          .toList();
-    });
-  }
+  String _search = '';
 
   @override
   Widget build(BuildContext context) {
@@ -55,8 +20,8 @@ class _ElectronicsPageState extends State<ElectronicsPage> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF3B3B98),
         title: const Text('Electronics', style: TextStyle(color: Colors.white)),
-        iconTheme: const IconThemeData(color: Colors.white), 
         centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Padding(
@@ -64,8 +29,7 @@ class _ElectronicsPageState extends State<ElectronicsPage> {
         child: Column(
           children: [
             TextField(
-              controller: _searchController,
-              onChanged: _filter,
+              onChanged: (val) => setState(() => _search = val),
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.search),
                 hintText: 'Search electronics...',
@@ -79,44 +43,77 @@ class _ElectronicsPageState extends State<ElectronicsPage> {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: filteredProducts.isEmpty
-                  ? const Center(child: Text('No electronics found.'))
-                  : ListView.builder(
-                      itemCount: filteredProducts.length,
-                      itemBuilder: (context, index) {
-                        final item = filteredProducts[index];
-                        return Card(
-                          margin: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          child: ListTile(
-                            leading: ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: Image.asset(item['image']!, width: 50, height: 50, fit: BoxFit.cover),
-                            ),
-                            title: Text(item['title']!),
-                            subtitle: Text(item['description']!),
-                            trailing: ElevatedButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => ElectronicsDetailsPage(
-                                      image: item['image']!,
-                                      title: item['title']!,
-                                      description: item['description']!,
-                                      price: item['price']!,
-                                      phoneNumber: item['phone']!,
-                                    ),
-                                  ),
-                                );
-                              },
-                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF3B3B98)),
-                              child: const Text("View"),
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('products')
+                    .where('category', isEqualTo: 'Electronics')
+                    .orderBy('title')
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return const Center(child: Text('No electronics found.'));
+                  }
+
+                  final filtered = snapshot.data!.docs.where((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    final title = data['title']?.toString().toLowerCase() ?? '';
+                    return title.contains(_search.toLowerCase());
+                  }).toList();
+
+                  return ListView.builder(
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      final data = filtered[index].data() as Map<String, dynamic>;
+
+                      return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        child: ListTile(
+                          leading: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.network(
+                              data['imageUrl'] ?? '',
+                              width: 50,
+                              height: 50,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported),
                             ),
                           ),
-                        );
-                      },
-                    ),
+                          title: Text(data['title'] ?? ''),
+                          subtitle: Text(data['description'] ?? ''),
+                          trailing: ElevatedButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ElectronicsDetailsPage(
+                                    image: data['imageUrl'] ?? '',
+                                    title: data['title'] ?? '',
+                                    description: data['description'] ?? '',
+                                    price: data['price'] ?? '',
+                                    phoneNumber: data['phone'] ?? '',
+                                    receiverId: data['ownerId'] ?? '',
+                                    receiverName: data['ownerName'] ?? 'Seller',
+                                    receiverAvatar: data['ownerAvatar'] ?? '',
+                                  ),
+                                ),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF3B3B98),
+                            ),
+                            child: const Text("View"),
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ],
         ),

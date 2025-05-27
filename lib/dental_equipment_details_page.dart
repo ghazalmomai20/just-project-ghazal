@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'chat_page.dart';
 
 class DentalEquipmentDetailsPage extends StatelessWidget {
@@ -7,6 +8,9 @@ class DentalEquipmentDetailsPage extends StatelessWidget {
   final String description;
   final String price;
   final String phoneNumber;
+  final String receiverId;
+  final String receiverName;
+  final String receiverAvatar;
 
   const DentalEquipmentDetailsPage({
     super.key,
@@ -15,11 +19,15 @@ class DentalEquipmentDetailsPage extends StatelessWidget {
     required this.description,
     required this.price,
     required this.phoneNumber,
+    required this.receiverId,
+    required this.receiverName,
+    required this.receiverAvatar,
   });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
       appBar: AppBar(
@@ -33,18 +41,21 @@ class DentalEquipmentDetailsPage extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(15),
-              child: Image.asset(
+              child: Image.network(
                 image,
                 height: 200,
                 width: double.infinity,
                 fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  height: 200,
+                  width: double.infinity,
+                  color: Colors.grey[300],
+                  child: const Icon(Icons.broken_image, size: 50),
+                ),
               ),
             ),
             const SizedBox(height: 20),
-            Text(
-              title,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
+            Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             Text(
               description,
@@ -56,18 +67,11 @@ class DentalEquipmentDetailsPage extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             Text(
-              price,
-              style: const TextStyle(
-                fontSize: 20,
-                color: Colors.green,
-                fontWeight: FontWeight.bold,
-              ),
+              '$price JD',
+              style: const TextStyle(fontSize: 20, color: Colors.green, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 30),
-            const Text(
-              'Contact Seller',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-            ),
+            const Text('Contact Seller', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
             const SizedBox(height: 15),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -99,9 +103,12 @@ class DentalEquipmentDetailsPage extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const ChatPage(
-                          userName: 'Admin',
-                          userAvatar: 'https://randomuser.me/api/portraits/men/4.jpg', // ✅ صورة رمزية جديدة
+                        builder: (_) => ChatPage(
+                          receiverId: receiverId,
+                          receiverName: receiverName,
+                          receiverAvatar: receiverAvatar,
+                          userName: user?.displayName ?? 'Guest',
+                          userAvatar: user?.photoURL ?? '',
                         ),
                       ),
                     );

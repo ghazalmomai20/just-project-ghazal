@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'chat_page.dart';
 
 class ClothesDetailsPage extends StatelessWidget {
@@ -7,6 +8,9 @@ class ClothesDetailsPage extends StatelessWidget {
   final String description;
   final String price;
   final String phoneNumber;
+  final String receiverId;
+  final String receiverName;
+  final String receiverAvatar;
 
   const ClothesDetailsPage({
     super.key,
@@ -15,11 +19,15 @@ class ClothesDetailsPage extends StatelessWidget {
     required this.description,
     required this.price,
     required this.phoneNumber,
+    required this.receiverId,
+    required this.receiverName,
+    required this.receiverAvatar,
   });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
       appBar: AppBar(
@@ -34,11 +42,12 @@ class ClothesDetailsPage extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(15),
-              child: Image.asset(
+              child: Image.network(
                 image,
                 height: 200,
                 width: double.infinity,
                 fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported, size: 50),
               ),
             ),
             const SizedBox(height: 20),
@@ -57,7 +66,7 @@ class ClothesDetailsPage extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             Text(
-              price,
+              '$price JD',
               style: const TextStyle(
                 fontSize: 20,
                 color: Colors.green,
@@ -101,9 +110,12 @@ class ClothesDetailsPage extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const ChatPage(
-                          userName: 'Admin',
-                          userAvatar: 'https://randomuser.me/api/portraits/women/5.jpg', // ✅ صورة رمزية
+                        builder: (_) => ChatPage(
+                          receiverId: receiverId,
+                          receiverName: receiverName,
+                          receiverAvatar: receiverAvatar,
+                          userName: user?.displayName ?? '',
+                          userAvatar: user?.photoURL ?? '',
                         ),
                       ),
                     );
