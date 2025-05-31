@@ -1,0 +1,2 @@
+C:/just store/just_store-3/android/app/.cxx/Debug/666ko485/x86_64/CMakeFiles/edit_cache.dir
+C:/just store/just_store-3/android/app/.cxx/Debug/666ko485/x86_64/CMakeFiles/rebuild_cache.dir

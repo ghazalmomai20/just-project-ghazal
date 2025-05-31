@@ -1,3 +1,5 @@
+// ignore_for_file: unused_field
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -12,6 +14,7 @@ class ChatListPage extends StatefulWidget {
 }
 
 class _ChatListPageState extends State<ChatListPage> {
+  // ignore: prefer_final_fields
   String _searchQuery = '';
 
   String _formatTime(Timestamp? timestamp) {
@@ -146,6 +149,7 @@ class _ChatListPageState extends State<ChatListPage> {
               final lastMsgType = data['lastMessageType'] ?? 'text';
               final time = _formatTime(data['lastMessageTime']);
               final unreadCount = (data['unreadCount'] as Map<String, dynamic>?)?[userId] ?? 0;
+              // ignore: unused_local_variable
               final isOnline = data['isOnline'] ?? false;
 
               return ListTile(

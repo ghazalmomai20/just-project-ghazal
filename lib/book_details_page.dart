@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'chat_page.dart';
+import 'package:just_store_clean/widgets/favorite_button.dart';
 
 class BookDetailsPage extends StatefulWidget {
   final String productId;
@@ -60,11 +61,27 @@ class _BookDetailsPageState extends State<BookDetailsPage> {
     final receiverName = data!['ownerName'] ?? 'User';
     final receiverAvatar = data!['ownerAvatar'] ?? '';
 
+    // ✅ تجهيز البيانات للمفضلة
+    final productData = {
+      'title': title,
+      'description': description,
+      'price': price,
+      'image': image,
+      'category': 'Books',
+    };
+
     return Scaffold(
       appBar: AppBar(
         title: Text(title),
         backgroundColor: const Color(0xFF3B3B98),
         foregroundColor: Colors.white,
+        actions: [
+          // ✅ زر المفضلة
+          FavoriteButton(
+            productId: widget.productId,
+            productData: productData,
+          ),
+        ],
       ),
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SingleChildScrollView(

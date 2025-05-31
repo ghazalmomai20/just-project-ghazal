@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'chat_page.dart';
+import 'package:just_store_clean/widgets/favorite_button.dart'; // ✅ زر المفضلة
 
 class ElectronicsDetailsPage extends StatelessWidget {
   final String image;
@@ -29,12 +30,26 @@ class ElectronicsDetailsPage extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final user = FirebaseAuth.instance.currentUser;
 
+    final productData = {
+      'title': title,
+      'description': description,
+      'price': price,
+      'image': image,
+      'category': 'Electronics',
+    };
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF3B3B98),
         title: Text(title, style: const TextStyle(color: Colors.white)),
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          FavoriteButton(
+            productId: '${receiverId}_$title', // 🔐 لتفادي التكرار
+            productData: productData,
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -48,7 +63,7 @@ class ElectronicsDetailsPage extends StatelessWidget {
                 width: double.infinity,
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) =>
-                const Icon(Icons.image_not_supported, size: 50),
+                    const Icon(Icons.image_not_supported, size: 50),
               ),
             ),
             const SizedBox(height: 20),
@@ -56,7 +71,10 @@ class ElectronicsDetailsPage extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               description,
-              style: TextStyle(fontSize: 16, color: isDark ? Colors.white70 : Colors.grey[800]),
+              style: TextStyle(
+                fontSize: 16,
+                color: isDark ? Colors.white70 : Colors.grey[800],
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
@@ -78,7 +96,10 @@ class ElectronicsDetailsPage extends StatelessWidget {
                         title: const Text('Seller Contact'),
                         content: Text('📞 $phoneNumber'),
                         actions: [
-                          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Close'),
+                          ),
                         ],
                       ),
                     );

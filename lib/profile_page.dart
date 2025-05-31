@@ -22,7 +22,8 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStateMixin {
   File? _imageFile;
-  String _email = 'hello@reallygreatsite.com';
+  String _email = '';
+  String _displayName = '';
   int _selectedIndex = 2;
   final int _unreadMessages = 5;
 
@@ -35,7 +36,11 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     super.initState();
     _loadProfileData();
 
-    _email = FirebaseAuth.instance.currentUser?.email ?? _email;
+    final user = FirebaseAuth.instance.currentUser;
+    _email = user?.email ?? '';
+    _displayName = user?.displayName?.trim().isNotEmpty == true
+        ? user!.displayName!
+        : (_email.split('@').first);
 
     _controller = AnimationController(
       duration: const Duration(milliseconds: 800),
@@ -165,7 +170,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  widget.userName,
+                  _displayName,
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,

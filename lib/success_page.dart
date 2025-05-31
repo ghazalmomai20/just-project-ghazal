@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'home_page.dart';
 
 class SuccessPage extends StatefulWidget {
   const SuccessPage({super.key});
@@ -14,12 +16,23 @@ class _SuccessPageState extends State<SuccessPage> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
+
     _controller = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
     _scaleAnim = CurvedAnimation(parent: _controller, curve: Curves.elasticOut);
     _controller.forward();
+
+    // الانتقال التلقائي إلى HomePage بعد 3 ثواني
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomePage()),
+        );
+      }
+    });
   }
 
   @override
@@ -31,34 +44,31 @@ class _SuccessPageState extends State<SuccessPage> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF3B82F6), Color(0xFFF0F4FF)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
+      backgroundColor: Colors.white,
+      body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ScaleTransition(
               scale: _scaleAnim,
-              child: Image.asset(
-                'assets/success.png', // تأكد إن الصورة موجودة بالمجلد assets
-                height: 120,
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F5E9),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check_circle_rounded, size: 100, color: Colors.green),
               ),
             ),
             const SizedBox(height: 30),
             const Text(
-              "YOUR PRODUCT HAS\nBEEN PUBLISHED\nSUCCESSFULLY",
+              "YOUR PRODUCT HAS BEEN\nPUBLISHED SUCCESSFULLY",
               textAlign: TextAlign.center,
               style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.2,
                 color: Color(0xFF1E1E2C),
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-                letterSpacing: 1.1,
               ),
             ),
           ],

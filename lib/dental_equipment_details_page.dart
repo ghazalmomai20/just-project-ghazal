@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'chat_page.dart';
+import 'package:just_store_clean/widgets/favorite_button.dart';
 
 class DentalEquipmentDetailsPage extends StatelessWidget {
   final String image;
@@ -29,11 +30,26 @@ class DentalEquipmentDetailsPage extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final user = FirebaseAuth.instance.currentUser;
 
+    // ✅ بيانات المنتج لزر المفضلة
+    final productData = {
+      'title': title,
+      'description': description,
+      'price': price,
+      'image': image,
+      'category': 'Dental Equipment',
+    };
+
     return Scaffold(
       appBar: AppBar(
         title: Text(title),
         backgroundColor: const Color(0xFF3B3B98),
         foregroundColor: Colors.white,
+        actions: [
+          FavoriteButton(
+            productId: "$title-$price", // أو productId الحقيقي لو متوفر
+            productData: productData,
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),

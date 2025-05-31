@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'chat_page.dart';
+import 'package:just_store_clean/widgets/favorite_button.dart';
 
 class ArtsCraftsDetailsPage extends StatelessWidget {
   final String image;
@@ -10,7 +11,7 @@ class ArtsCraftsDetailsPage extends StatelessWidget {
   final String phoneNumber;
   final String receiverId;
   final String receiverName;
-  final String receiverAvatar; // ✅ أضفناها
+  final String receiverAvatar;
 
   const ArtsCraftsDetailsPage({
     super.key,
@@ -21,7 +22,7 @@ class ArtsCraftsDetailsPage extends StatelessWidget {
     required this.phoneNumber,
     required this.receiverId,
     required this.receiverName,
-    required this.receiverAvatar, // ✅ أضفناها
+    required this.receiverAvatar,
   });
 
   @override
@@ -29,12 +30,28 @@ class ArtsCraftsDetailsPage extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final user = FirebaseAuth.instance.currentUser;
 
+    // ✅ تجهيز بيانات المنتج لإرسالها إلى زر المفضلة
+    final productData = {
+      'title': title,
+      'description': description,
+      'price': price,
+      'image': image,
+      'category': 'Arts', // عدّلها حسب الكاتيجوري الحالي
+    };
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF3B3B98),
         title: Text(title),
-        foregroundColor: Colors.white,
         centerTitle: true,
+        foregroundColor: Colors.white,
+        actions: [
+          // ✅ زر المفضلة داخل AppBar
+          FavoriteButton(
+            productId: "$title-$price", // أو أي ID فريد
+            productData: productData,
+          ),
+        ],
       ),
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Padding(
@@ -114,7 +131,7 @@ class ArtsCraftsDetailsPage extends StatelessWidget {
                         builder: (_) => ChatPage(
                           receiverId: receiverId,
                           receiverName: receiverName,
-                          receiverAvatar: receiverAvatar, // ✅ استخدمناها
+                          receiverAvatar: receiverAvatar,
                           userName: user?.displayName ?? 'Guest',
                           userAvatar: user?.photoURL ?? '',
                         ),

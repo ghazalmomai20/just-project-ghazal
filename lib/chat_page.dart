@@ -1,8 +1,11 @@
+// ignore_for_file: unused_field
+
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+// ignore: unnecessary_import
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -37,6 +40,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   bool _isOnline = false;
   DateTime? _lastSeen;
   bool _isTyping = false;
+  // ignore: prefer_final_fields
   bool _showEmojiPicker = false;
 
   @override
