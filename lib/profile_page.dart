@@ -140,7 +140,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1746A2),
+        backgroundColor:Color(0xFF1976D2),
         title: const Text('Profile', style: TextStyle(color: Colors.white)),
         centerTitle: true,
         leading: IconButton(
@@ -174,7 +174,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1746A2),
+                    color: Color(0xFF1976D2),
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -232,7 +232,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: const Color(0xFF3B3B98),
+        backgroundColor: Color(0xFF1976D2),
         selectedItemColor: Colors.white,
         unselectedItemColor: Colors.white70,
         currentIndex: _selectedIndex,

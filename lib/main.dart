@@ -14,6 +14,7 @@ import 'splash_screen.dart';
 import 'verify_code_page.dart';
 import 'home_page.dart';
 import 'login_page_v2.dart'; // ✅ تأكد من وجود صفحة login_page.dart
+import 'add_product_page.dart'; // ✅ إضافة import لصفحة إضافة المنتج
 
 // 🔔 Local notifications plugin instance
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -93,7 +94,16 @@ class MyApp extends StatelessWidget {
         '/home': (context) => const HomePage(),
         '/verify': (context) => const VerifyCodePage(email: 'test@example.com'),
         '/login': (context) => const LoginPageV2(), // ✅ تأكد من تعريفها
+        '/add_product': (context) => const AddProductPage(), // ✅ route لإضافة منتج جديد
+        '/edit_product': (context) {
+          // ✅ route لتعديل المنتج مع استقبال البيانات
+          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+          return AddProductPage(
+            postId: args['postId'],
+            postData: args['postData'],
+          );
+        },
       },
     );
   }
-}
+} 

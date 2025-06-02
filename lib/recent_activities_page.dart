@@ -43,7 +43,7 @@ class _RecentActivitiesPageState extends State<RecentActivitiesPage> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    const titleColor = Color(0xFF3B3B98);
+    const titleColor = Color(0xFF1976D2);
     final textColor = isDark ? Colors.white : Colors.black;
 
     return Scaffold(

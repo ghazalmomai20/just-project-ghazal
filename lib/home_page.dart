@@ -28,13 +28,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late Animation<Offset> _slideAnimation;
 
   final List<Map<String, dynamic>> _categories = [
-    {'icon': Icons.all_inclusive, 'label': 'All', 'gradient': [Color(0xFF1976D2), Color(0xFF42A5F5)]},
-    {'icon': Icons.book, 'label': 'Books', 'gradient': [Color(0xFF2196F3), Color(0xFF64B5F6)]},
-    {'icon': Icons.school, 'label': 'Lab Coat', 'gradient': [Color(0xFF1565C0), Color(0xFF1976D2)]},
-    {'icon': Icons.laptop, 'label': 'Laptop', 'gradient': [Color(0xFF0D47A1), Color(0xFF1976D2)]},
-    {'icon': Icons.medical_services, 'label': 'Medical', 'gradient': [Color(0xFF1976D2), Color(0xFF2196F3)]},
-    {'icon': Icons.architecture, 'label': 'Engineering', 'gradient': [Color(0xFF0277BD), Color(0xFF03A9F4)]},
-    {'icon': Icons.color_lens, 'label': 'Arts', 'gradient': [Color(0xFF0288D1), Color(0xFF29B6F6)]},
+    {'icon': Icons.all_inclusive, 'label': 'All', 'gradient': [Color(0xFF0288D1), Color(0xFF42A5F5)]},
+    {'icon': Icons.book, 'label': 'Books', 'gradient': [Color(0xFF0288D1), Color(0xFF42A5F5)]},
+    {'icon': Icons.school, 'label': 'Lab Coat', 'gradient': [Color(0xFF0288D1), Color(0xFF42A5F5)]},
+    {'icon': Icons.laptop, 'label': 'Laptop', 'gradient': [Color(0xFF0288D1), Color(0xFF42A5F5)]},
+    {'icon': Icons.medical_services, 'label': 'Medical', 'gradient': [Color(0xFF0288D1), Color(0xFF42A5F5)]},
+    {'icon': Icons.architecture, 'label': 'Engineering', 'gradient': [Color(0xFF0288D1), Color(0xFF42A5F5)]},
+    {'icon': Icons.color_lens, 'label': 'Arts', 'gradient': [Color(0xFF0288D1), Color(0xFF42A5F5)]},
   ];
 
   String _getGreeting() {
@@ -96,8 +96,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        onPressed: () {
+backgroundColor: const Color(0xFF0288D1),        onPressed: () {
           Navigator.push(context, MaterialPageRoute(builder: (_) => const AddProductPage()));
         },
         child: const Icon(Icons.add, color: Colors.white),
@@ -182,7 +181,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           children: [
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Icon(Icons.search, color: Color(0xFF64B5F6)),
+              child: Icon(Icons.search, color:Color(0xFF1976D2)),
             ),
             Expanded(
               child: TextField(
@@ -243,7 +242,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         children: [
           _buildNavItem(Icons.home, 'Home', true),
           _buildNavItem(Icons.favorite, 'Favorites', false),
-          const SizedBox(width: 40),
+          const SizedBox(width: 40,),
           _buildNavItem(Icons.chat, 'Messages', false),
           _buildNavItem(Icons.person, 'Profile', false),
         ],
@@ -265,11 +264,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: isSelected ? const Color(0xFF1976D2) : Colors.grey),
+          Icon(icon, color: isSelected ?Color(0xFF1976D2) : Colors.grey),
           Text(label,
               style: TextStyle(
                 fontSize: 11,
-                color: isSelected ? const Color(0xFF1976D2) : Colors.grey,
+                color: isSelected ? Color(0xFF1976D2) : Colors.grey,
               )),
         ],
       ),
@@ -316,7 +315,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   color: Theme.of(context).cardColor,
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10)],
+                  boxShadow: [BoxShadow(color: const Color.fromARGB(255, 255, 255, 255).withOpacity(0.1), blurRadius: 10)],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

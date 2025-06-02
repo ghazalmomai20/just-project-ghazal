@@ -81,7 +81,7 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
   @override
   Widget build(BuildContext context) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    const Color mainColor = Color(0xFF3B3B98);
+    const Color mainColor = Color(0xFF1976D2);
     final Color textColor = isDark ? Colors.white : Colors.black;
     final Color fieldColor = isDark ? Colors.grey[800]! : Colors.grey[200]!;
 

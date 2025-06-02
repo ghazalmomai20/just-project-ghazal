@@ -15,7 +15,7 @@ class TermsAndConditionsPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: isDark ? const Color(0xFF3B3B98) : const Color(0xFF3B3B98),
+        backgroundColor: isDark ?Color(0xFF1976D2) : Color(0xFF42A5F5),
         title: Text('Terms & Conditions', style: TextStyle(color: isDark ? Colors.white : Colors.white)),
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : Colors.white),

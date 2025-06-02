@@ -142,6 +142,82 @@ class _PostDetailsPageState extends State<PostDetailsPage> with TickerProviderSt
     );
   }
 
+  // دالة فحص ما إذا كان المستخدم الحالي هو صاحب البوست
+  bool _isOwner() {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    final postOwnerId = widget.postData['ownerId'] ?? '';
+    return currentUserId != null && currentUserId == postOwnerId;
+  }
+
+  // دالة تعديل البوست
+  Future<void> _editPost() async {
+    Navigator.pushNamed(
+      context,
+      '/edit_product',
+      arguments: {
+        'postId': widget.postId,
+        'postData': widget.postData,
+      },
+    );
+  }
+
+  // دالة حذف البوست
+  Future<void> _deletePost() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Post'),
+        content: const Text('Are you sure you want to delete this post? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        // إظهار مؤشر التحميل
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(child: CircularProgressIndicator()),
+        );
+
+        // حذف البوست من Firestore
+        await FirebaseFirestore.instance.collection('posts').doc(widget.postId).delete();
+
+        // إغلاق مؤشر التحميل
+        Navigator.pop(context);
+
+        // العودة للصفحة الرئيسية
+        Navigator.pop(context);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Post deleted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        Navigator.pop(context); // إغلاق مؤشر التحميل
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error deleting post: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final name = widget.postData['name'] ?? 'Untitled';
@@ -212,6 +288,43 @@ class _PostDetailsPageState extends State<PostDetailsPage> with TickerProviderSt
             onPressed: _toggleLike,
           ),
         ),
+        // إضافة قائمة إعدادات للمالك فقط
+        if (_isOwner())
+          Container(
+            margin: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.9),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, color: Color(0xFF1976D2)),
+              onSelected: (value) {
+                if (value == 'edit') {
+                  _editPost();
+                } else if (value == 'delete') {
+                  _deletePost();
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'edit',
+                  child: ListTile(
+                    leading: Icon(Icons.edit, color: Color(0xFF1976D2)),
+                    title: Text('Edit Post'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: ListTile(
+                    leading: Icon(Icons.delete, color: Colors.red),
+                    title: Text('Delete Post'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
       flexibleSpace: FlexibleSpaceBar(
         background: Stack(
@@ -304,7 +417,7 @@ class _PostDetailsPageState extends State<PostDetailsPage> with TickerProviderSt
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        "\$price",
+                        "$price JD",
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 20,
@@ -742,4 +855,5 @@ class _PostDetailsPageState extends State<PostDetailsPage> with TickerProviderSt
       default:
         return const Color(0xFF9E9E9E);
     }
-  }}
+  }
+}

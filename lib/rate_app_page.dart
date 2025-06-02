@@ -87,7 +87,7 @@ class _RateAppPageState extends State<RateAppPage> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF3B3B98),
+        backgroundColor:Color(0xFF1976D2),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
@@ -115,7 +115,7 @@ class _RateAppPageState extends State<RateAppPage> {
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF3B3B98),
+                      color: Color(0xFF1976D2),
                       fontFamily: 'AgentOrange',
                     ),
                   ),
@@ -134,7 +134,7 @@ class _RateAppPageState extends State<RateAppPage> {
                   children: const [
                     TextSpan(
                       text: 'Just Store',
-                      style: TextStyle(color: Color(0xFF3B3B98), fontWeight: FontWeight.bold),
+                      style: TextStyle(color:Color(0xFF1976D2), fontWeight: FontWeight.bold),
                     ),
                     TextSpan(text: ' app?'),
                   ],
@@ -168,7 +168,7 @@ class _RateAppPageState extends State<RateAppPage> {
                   '✪ Let us know if you have ideas to improve the app:',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF3B3B98),
+                    color:Color(0xFF1976D2),
                     fontSize: 14,
                   ),
                 ),
@@ -251,7 +251,7 @@ class _RateAppPageState extends State<RateAppPage> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: isSelected
-                  ? Border.all(color: const Color(0xFF3B3B98), width: 3)
+                  ? Border.all(color: Color(0xFF1976D2), width: 3)
                   : null,
             ),
             child: Image.asset(assetPath, height: 60, width: 60),

@@ -25,7 +25,7 @@ class NotificationsPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Notifications'),
         centerTitle: true,
-        backgroundColor: Colors.deepPurple, // ✅ لون ثابت إن أردت توحيد الهوية
+        backgroundColor: Color(0xFF1976D2), // ✅ لون ثابت إن أردت توحيد الهوية
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance

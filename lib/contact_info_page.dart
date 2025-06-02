@@ -98,7 +98,7 @@ class _ContactInfoPageState extends State<ContactInfoPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black;
     final backgroundColor = Theme.of(context).scaffoldBackgroundColor;
-    const mainColor = Color(0xFF3B3B98);
+    const mainColor =Color(0xFF1976D2);
 
     return Scaffold(
       backgroundColor: backgroundColor,

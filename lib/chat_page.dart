@@ -284,7 +284,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: isMe ? const Color(0xFF3B3B98) : Colors.grey[300],
+              color: isMe ? Color(0xFF1976D2): Colors.grey[300],
               borderRadius: BorderRadius.only(
                 topLeft: const Radius.circular(20),
                 topRight: const Radius.circular(20),
@@ -551,7 +551,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                     const SizedBox(width: 8),
                     Container(
                       decoration: const BoxDecoration(
-                        color: Color(0xFF3B3B98),
+                        color: Color(0xFF1976D2), 
                         shape: BoxShape.circle,
                       ),
                       child: IconButton(

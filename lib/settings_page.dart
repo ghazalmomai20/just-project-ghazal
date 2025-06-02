@@ -86,7 +86,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return Scaffold(
       backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF3B3B98),
+        backgroundColor:Color(0xFF1976D2),
         centerTitle: true,
         title: const Text('Settings', style: TextStyle(color: Colors.white)),
         leading: IconButton(
@@ -181,7 +181,7 @@ class _SettingsPageState extends State<SettingsPage> {
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: const Color(0xFF3B3B98),
+        backgroundColor:Color(0xFF1976D2),
         selectedItemColor: Colors.white,
         unselectedItemColor: Colors.white70,
         currentIndex: 2,
