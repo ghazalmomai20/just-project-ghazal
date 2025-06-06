@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'seed_data.dart';
 
 class AdminSeedPage extends StatelessWidget {
+  // ignore: use_super_parameters
   const AdminSeedPage({Key? key}) : super(key: key);
 
   @override
@@ -12,6 +13,7 @@ class AdminSeedPage extends StatelessWidget {
         child: ElevatedButton(
           onPressed: () async {
             await seedMixedProducts();
+            // ignore: use_build_context_synchronously
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Data seeded successfully!')),
             );

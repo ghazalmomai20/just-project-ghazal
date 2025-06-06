@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-// ignore: unused_import
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
-
 import 'theme_provider.dart';
 import 'providers/product_provider.dart';
 import 'firebase_options.dart';
@@ -13,8 +11,8 @@ import 'services/notification_service.dart';
 import 'splash_screen.dart';
 import 'verify_code_page.dart';
 import 'home_page.dart';
-import 'login_page_v2.dart'; // ✅ تأكد من وجود صفحة login_page.dart
-import 'add_product_page.dart'; // ✅ إضافة import لصفحة إضافة المنتج
+import 'login_page_v2.dart';
+import 'add_product_page.dart';
 
 // 🔔 Local notifications plugin instance
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -46,24 +44,56 @@ Future<void> main() async {
     FirebaseMessaging messaging = FirebaseMessaging.instance;
 
     // 🚨 Request Notification Permissions
-    await messaging.requestPermission();
+    NotificationSettings settings = await messaging.requestPermission(
+      alert: true,
+      announcement: false,
+      badge: true,
+      carPlay: false,
+      criticalAlert: false,
+      provisional: false,
+      sound: true,
+    );
 
-    // 🔑 Print FCM Token
-    final String? fcmToken = await messaging.getToken();
-    if (fcmToken != null) {
-      debugPrint('FCM Token: $fcmToken');
+    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      debugPrint('✅ User granted notification permission');
+
+      // 🔑 Save FCM Token when user logs in
+      FirebaseAuth.instance.authStateChanges().listen((User? user) {
+        if (user != null) {
+          // حفظ FCM Token عند تسجيل الدخول
+          NotificationService.saveFCMToken();
+          
+          // 🤖 بدء منظف الإشعارات العربية عند تسجيل الدخول
+          FirestoreNotificationService.startArabicNotificationCleaner();
+        } else {
+          // مسح FCM Token عند تسجيل الخروج
+          NotificationService.clearFCMToken();
+          
+          // 🛑 إيقاف منظف الإشعارات عند تسجيل الخروج
+          FirestoreNotificationService.stopArabicNotificationCleaner();
+        }
+      });
+
+      // 📲 Foreground Message Handling - تعطيل الإشعارات المحلية
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        // لا تعرض إشعارات محلية - فقط خلي الإشعارات تروح للـ notifications collection
+        debugPrint('📲 FCM Message received: ${message.messageId}');
+        
+        // 🧹 حذف فوري للإشعارات العربية عند استلام رسالة FCM
+        Future.delayed(const Duration(milliseconds: 500), () {
+          FirestoreNotificationService.removeArabicNotificationsImmediate();
+        });
+      });
+
+      // معالجة الضغط على الإشعارات
+      NotificationService.setupMessageHandlers();
+
+      // الاستماع لتحديث Token
+      messaging.onTokenRefresh.listen((String token) {
+        debugPrint('🔄 FCM Token refreshed: $token');
+        NotificationService.saveFCMToken();
+      });
     }
-
-    // 📲 Foreground Message Handling
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      final notification = message.notification;
-      if (notification != null) {
-        NotificationService.showNotification(
-          title: notification.title ?? 'No title',
-          body: notification.body ?? 'No message body',
-        );
-      }
-    });
   } catch (e) {
     debugPrint('❌ Firebase initialization error: $e');
   }
@@ -79,8 +109,66 @@ Future<void> main() async {
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    
+    // 🧹 تنظيف شامل للإشعارات عند بدء التطبيق
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _performInitialCleanup();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    // 🛑 إيقاف منظف الإشعارات عند إغلاق التطبيق
+    FirestoreNotificationService.stopArabicNotificationCleaner();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    switch (state) {
+      case AppLifecycleState.resumed:
+        // عند العودة للتطبيق - تنظيف الإشعارات
+        _performInitialCleanup();
+        break;
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        // عند إيقاف التطبيق مؤقتاً - لا نوقف المنظف
+        break;
+      case AppLifecycleState.inactive:
+        break;
+      case AppLifecycleState.hidden:
+        break;
+    }
+  }
+
+  // دالة للتنظيف الأولي
+  Future<void> _performInitialCleanup() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        await FirestoreNotificationService.cleanupAllDuplicateNotifications();
+        debugPrint('🧽 Initial cleanup completed');
+      } catch (e) {
+        debugPrint('❌ Initial cleanup error: $e');
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -89,14 +177,13 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: themeProvider.isDarkMode ? ThemeData.dark() : ThemeData.light(),
-      home: const SplashScreen(), // 🟢 تظهر أولاً
+      home: const SplashScreen(),
       routes: {
         '/home': (context) => const HomePage(),
         '/verify': (context) => const VerifyCodePage(email: 'test@example.com'),
-        '/login': (context) => const LoginPageV2(), // ✅ تأكد من تعريفها
-        '/add_product': (context) => const AddProductPage(), // ✅ route لإضافة منتج جديد
+        '/login': (context) => const LoginPageV2(),
+        '/add_product': (context) => const AddProductPage(),
         '/edit_product': (context) {
-          // ✅ route لتعديل المنتج مع استقبال البيانات
           final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
           return AddProductPage(
             postId: args['postId'],
@@ -106,4 +193,4 @@ class MyApp extends StatelessWidget {
       },
     );
   }
-} 
+}

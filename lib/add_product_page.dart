@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously, duplicate_ignore
+
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -175,6 +177,7 @@ class _AddProductPageState extends State<AddProductPage> {
         }
       }
     } catch (e) {
+      // ignore: use_build_context_synchronously
       Navigator.pop(context); // إغلاق مؤشر التحميل
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -187,6 +190,7 @@ class _AddProductPageState extends State<AddProductPage> {
 
   @override
   Widget build(BuildContext context) {
+    // ignore: prefer_const_declarations
     final primaryColor = const Color(0xFF1976D2);
 
     return Scaffold(

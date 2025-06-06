@@ -1,4 +1,6 @@
 // lib/models/message_model.dart
+// ignore_for_file: file_names
+
 class Message {
   final String id;
   final String senderId;

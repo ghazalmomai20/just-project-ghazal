@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_const_constructors, deprecated_member_use
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -21,6 +23,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   String _username = 'User';
   String _selectedCategory = 'All';
   String _searchQuery = '';
+  int _unreadNotificationsCount = 0;
 
   late AnimationController _fadeController;
   late AnimationController _slideController;
@@ -54,7 +57,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         .animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOut));
     _fadeController.forward();
     _slideController.forward();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadUsername());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadUsername();
+      _loadUnreadNotificationsCount();
+    });
   }
 
   Future<void> _loadUsername() async {
@@ -64,6 +70,25 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       final emailName = user.email?.split('@').first ?? 'User';
       setState(() {
         _username = (displayName != null && displayName.trim().isNotEmpty) ? displayName : emailName;
+      });
+    }
+  }
+
+  // 🔔 تحميل عدد الإشعارات غير المقروءة
+  void _loadUnreadNotificationsCount() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      FirebaseFirestore.instance
+          .collection('notifications')
+          .where('uid', isEqualTo: user.uid)
+          .where('read', isEqualTo: false)
+          .snapshots()
+          .listen((snapshot) {
+        if (mounted) {
+          setState(() {
+            _unreadNotificationsCount = snapshot.docs.length;
+          });
+        }
       });
     }
   }
@@ -96,7 +121,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-backgroundColor: const Color(0xFF0288D1),        onPressed: () {
+        backgroundColor: const Color(0xFF0288D1),
+        onPressed: () {
           Navigator.push(context, MaterialPageRoute(builder: (_) => const AddProductPage()));
         },
         child: const Icon(Icons.add, color: Colors.white),
@@ -136,15 +162,62 @@ backgroundColor: const Color(0xFF0288D1),        onPressed: () {
               ],
             ),
           ),
-          _buildAppBarButton(Icons.notifications_outlined, () {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsPage()));
-          }),
+          _buildNotificationButton(),
           const SizedBox(width: 8),
           _buildAppBarButton(Icons.settings_outlined, () {
             Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage()));
           }),
         ],
       ),
+    );
+  }
+
+  // 🔔 زر الإشعارات مع العداد
+  Widget _buildNotificationButton() {
+    return Stack(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const NotificationsPage()),
+              );
+            },
+          ),
+        ),
+        // العداد
+        if (_unreadNotificationsCount > 0)
+          Positioned(
+            right: 8,
+            top: 8,
+            child: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              constraints: const BoxConstraints(
+                minWidth: 16,
+                minHeight: 16,
+              ),
+              child: Text(
+                _unreadNotificationsCount > 99 ? '99+' : '$_unreadNotificationsCount',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+      ],
     );
   }
 

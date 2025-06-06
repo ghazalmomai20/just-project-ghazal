@@ -1,4 +1,4 @@
-// ignore_for_file: unused_field
+// ignore_for_file: unused_field, use_build_context_synchronously, prefer_const_constructors
 
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
