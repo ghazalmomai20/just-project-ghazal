@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'services/notification_service.dart'; // 👈 إضافة هذا الاستيراد
+import 'post_details_page.dart'; // 👈 إضافة استيراد صفحة تفاصيل المنتج
 
 class NotificationsPage extends StatefulWidget {
   // ignore: use_super_parameters
@@ -411,39 +412,148 @@ class _NotificationsPageState extends State<NotificationsPage> {
     }
   }
 
-  void _handleNotificationTap(BuildContext context, Map<String, dynamic> data) {
+  void _handleNotificationTap(BuildContext context, Map<String, dynamic> data) async {
     final type = data['type'];
     
-    // في الوقت الحالي، عرض رسالة بدلاً من التنقل
-    String message = '';
-    switch (type) {
-      case 'product_like':
-        message = 'Navigate to product: ${data['productName']}';
-        break;
-      case 'product_comment':
-        message = 'Navigate to product: ${data['productName']}';
-        break;
-      case 'post_comment':
-        message = 'Navigate to post: ${data['postName']}';
-        break;
-      case 'like':
-        message = 'Navigate to post';
-        break;
-      case 'comment':
-        message = 'Navigate to post';
-        break;
-      case 'message':
-        message = 'Navigate to chat with: ${data['senderName']}';
-        break;
-      default:
-        message = 'Unknown notification type: $type';
+    try {
+      switch (type) {
+        case 'product_like':
+        case 'product_comment':
+          // التنقل لصفحة تفاصيل المنتج
+          final productId = data['productId'];
+          
+          if (productId != null) {
+            // إظهار مؤشر التحميل
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => const Center(child: CircularProgressIndicator()),
+            );
+            
+            try {
+              // جلب بيانات المنتج الكاملة من قاعدة البيانات
+              final productDoc = await FirebaseFirestore.instance
+                  .collection('posts')
+                  .doc(productId)
+                  .get();
+              
+              Navigator.pop(context); // إغلاق مؤشر التحميل
+              
+              if (productDoc.exists) {
+                final productData = productDoc.data()!;
+                
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PostDetailsPage(
+                      postId: productId,
+                      postData: productData,
+                    ),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Product not found or may have been deleted'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            } catch (e) {
+              Navigator.pop(context); // إغلاق مؤشر التحميل في حالة الخطأ
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error loading product: $e'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          }
+          break;
+          
+        case 'like':
+        case 'comment':
+        case 'post_comment':
+          // التنقل لصفحة تفاصيل المنشور
+          final postId = data['postId'];
+          
+          if (postId != null) {
+            // إظهار مؤشر التحميل
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => const Center(child: CircularProgressIndicator()),
+            );
+            
+            try {
+              // جلب بيانات المنشور الكاملة من قاعدة البيانات
+              final postDoc = await FirebaseFirestore.instance
+                  .collection('posts')
+                  .doc(postId)
+                  .get();
+              
+              Navigator.pop(context); // إغلاق مؤشر التحميل
+              
+              if (postDoc.exists) {
+                final postData = postDoc.data()!;
+                
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PostDetailsPage(
+                      postId: postId,
+                      postData: postData,
+                    ),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Post not found or may have been deleted'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            } catch (e) {
+              Navigator.pop(context); // إغلاق مؤشر التحميل في حالة الخطأ
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error loading post: $e'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          }
+          break;
+          
+        case 'message':
+          // التنقل لصفحة المحادثة
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Opening chat with: ${data['senderName']}'),
+              backgroundColor: const Color(0xFF1976D2),
+            ),
+          );
+          // يمكن إضافة التنقل لصفحة المحادثة هنا
+          // Navigator.pushNamed(context, '/chat', arguments: data['senderUid']);
+          break;
+          
+        default:
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Unknown notification type: $type'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+      }
+    } catch (e) {
+      print('❌ Error navigating from notification: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error opening notification'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 2),
-      ),
-    );
   }
 }
